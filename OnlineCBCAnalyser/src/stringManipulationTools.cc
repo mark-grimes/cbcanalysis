@@ -1,5 +1,9 @@
 #include "XtalDAQ/OnlineCBCAnalyser/interface/stringManipulationTools.h"
 
+#include <sstream>
+#include <stdexcept>
+#include <cmath>
+
 namespace // Use the unnamed namespace for things only used in this file
 {
 	/// ASCII codes of characters that are considered whitespace (space, tab, carriage return, line feed).

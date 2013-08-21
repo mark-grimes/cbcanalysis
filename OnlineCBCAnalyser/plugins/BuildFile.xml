@@ -1,6 +1,6 @@
 <use name="DataFormats/FEDRawData"/>
 <use name="FWCore/Framework"/>
-<use name="EventFilter/SiStripRawToDigi"/>
-<library file="*.cc" name="MarksAnalysersCBCAnalyserPlugins">
+<use name="XtalDAQ/OnlineCBCAnalyser"/>
+<library file="*.cc" name="XtalDAQOnlineCBCAnalyserPlugins">
 	<flags   EDM_PLUGIN="1"/>
 </library>

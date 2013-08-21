@@ -1,6 +1,10 @@
 #ifndef XtalDAQ_OnlineCBCAnalyser_interface_stringManipulationTools_h
 #define XtalDAQ_OnlineCBCAnalyser_interface_stringManipulationTools_h
 
+#include <string>
+#include <vector>
+
+
 namespace cbcanalyser
 {
 	namespace tools

@@ -1,6 +1,17 @@
 #ifndef XtalDAQ_OnlineCBCAnalyser_interface_CBCChannelUnpacker_h
 #define XtalDAQ_OnlineCBCAnalyser_interface_CBCChannelUnpacker_h
 
+#include <vector>
+
+//
+// Forward declarations
+//
+namespace sistrip
+{
+	class FEDChannel;
+}
+
+
 namespace cbcanalyser
 {
 	/** @brief Simple utility class to unpack the bits from the CBC1 and present the result has a 128 bool vector.
