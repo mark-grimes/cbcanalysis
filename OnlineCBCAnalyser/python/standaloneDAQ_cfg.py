@@ -1,7 +1,7 @@
 import FWCore.ParameterSet.python.Config as cms 
 
 # process declaration
-process = cms.Process("HLT") 
+process = cms.Process("HLT")
 
 process.TFileService = cms.Service("TFileService",
 	fileName = cms.string("/home/xtaldaq/testHistograms.root")

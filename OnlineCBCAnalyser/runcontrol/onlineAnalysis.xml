@@ -150,7 +150,7 @@
 
 	<xc:Context url="http://localhost:10002">
 		<xc:Endpoint hostname="localhost" network="dhcalatcp" port="31807" protocol="atcp" service="i2o"/>
-		<xc:Application class="evf::FUEventProcessor" id="61" instance="0" network="local">
+		<xc:Application class="evf::FUEventProcessor" id="61" instance="1" network="local">
 			<properties xmlns="urn:xdaq-application:evf::FUEventProcessor" xsi:type="soapenc:Struct">
 				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/config/EPtoSM.py</parameterSet>
 				<hasPrescaleService xsi:type="xsd:boolean">true</hasPrescaleService>
@@ -160,7 +160,7 @@
 				<nbSubProcesses xsi:type="xsd:unsignedInt">1</nbSubProcesses>
 				<autoRestartSlaves xsi:type="xsd:boolean">true</autoRestartSlaves>
 				<slaveRestartDelaySecs xsi:type="xsd:unsignedInt">10</slaveRestartDelaySecs>
-				<!--nbDqmUpdates xsi:type="xsd:unsignedInt">10</nbDqmUpdates -->
+				<nbDqmUpdates xsi:type="xsd:unsignedInt">0</nbDqmUpdates>
 				<runNumber xsi:type="xsd:unsignedInt">1</runNumber>
 			</properties>
 		</xc:Application>
@@ -236,9 +236,9 @@
 
 	<xc:Context url="http://localhost:10005">
 		<xc:Endpoint hostname="localhost" network="dhcalatcp" port="31810" protocol="atcp" service="i2o"/>
-		<xc:Application class="evf::FUEventProcessor" id="61" instance="1" network="local">
+		<xc:Application class="evf::FUEventProcessor" id="61" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:evf::FUEventProcessor" xsi:type="soapenc:Struct">
-				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CMSSWReleases/CMSSW_5_3_4/src/MarksAnalysers/CBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
+				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CMSSWReleases/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
 				<hasPrescaleService xsi:type="xsd:boolean">false</hasPrescaleService>
 				<hasModuleWebRegistry xsi:type="xsd:boolean">true</hasModuleWebRegistry>
 				<hasServiceWebRegistry xsi:type="xsd:boolean">true</hasServiceWebRegistry>
@@ -246,6 +246,7 @@
 				<nbSubProcesses xsi:type="xsd:unsignedInt">1</nbSubProcesses>
 				<autoRestartSlaves xsi:type="xsd:boolean">true</autoRestartSlaves>
 				<slaveRestartDelaySecs xsi:type="xsd:unsignedInt">10</slaveRestartDelaySecs>
+				<nbDqmUpdates xsi:type="xsd:unsignedInt">0</nbDqmUpdates>
 				<runNumber xsi:type="xsd:unsignedInt">1</runNumber>
 			</properties>
 		</xc:Application>
@@ -258,7 +259,7 @@
 		</xc:Application>
 		<xc:Module>/opt/xdaq/lib/libptatcp.so</xc:Module>
 		<xc:Module>/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/libEventFilterProcessor.so</xc:Module>
-		<xc:Module>/home/xtaldaq/CMSSWReleases/CMSSW_5_3_4/lib/slc5_amd64_gcc462/pluginMarksAnalysersCBCAnalyserPlugins.so</xc:Module>
+		<xc:Module>/home/xtaldaq/CMSSWReleases/CMSSW_5_3_4/lib/slc5_amd64_gcc462/pluginXtalDAQOnlineCBCAnalyserPlugins.so</xc:Module>
 	</xc:Context>
 
 </xc:Partition>

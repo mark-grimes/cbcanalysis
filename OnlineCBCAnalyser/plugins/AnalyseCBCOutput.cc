@@ -136,15 +136,26 @@ void cbcanalyser::AnalyseCBCOutput::endJob()
 void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::EventSetup& setup )
 {
 	outputFile_ << "cbcanalyser::AnalyseCBCOutput::beginRun()" << std::endl;
-	readI2CValues();
+	try { readI2CValues(); }
+	catch( std::exception& error )
+	{
+		std::cerr << "readI2CValues() failed because: " << error.what() << std::endl;
+	}
 	eventsProcessed_=0;
 }
 
 void cbcanalyser::AnalyseCBCOutput::endRun( const edm::Run& run, const edm::EventSetup& setup )
 {
 	outputFile_ << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events." << std::endl;
-	edm::Service<TFileService>()->file().Write();
-	if( eventsProcessed_>0 ) writeOutput();
+	//edm::Service<TFileService>()->file().Write();
+	if( eventsProcessed_>0 )
+	{
+		try { writeOutput(); }
+		catch( std::exception& error )
+		{
+			std::cerr << "writeOutput() failed because: " << error.what() << std::endl;
+		}
+	}
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
