@@ -2,9 +2,12 @@ import httplib, urllib, time
 
 
 class I2cRegister :
-	''' Class to hold details about an I2C register for the CBC test stand. 
-		@author Mark Grimes (mark.grimes@bristol.ac.uk)
-		@date 08/Aug/2013 '''
+	"""
+	Class to hold details about an I2C register for the CBC test stand.
+	 
+	Author Mark Grimes (mark.grimes@bristol.ac.uk)
+	Date 08/Aug/2013
+	"""
 	def __init__(self,name,address,defaultValue,value) :
 		self.name=name
 		self.address=int(address,0)

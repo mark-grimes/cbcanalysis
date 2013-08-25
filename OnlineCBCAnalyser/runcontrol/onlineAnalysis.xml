@@ -160,7 +160,6 @@
 				<nbSubProcesses xsi:type="xsd:unsignedInt">1</nbSubProcesses>
 				<autoRestartSlaves xsi:type="xsd:boolean">true</autoRestartSlaves>
 				<slaveRestartDelaySecs xsi:type="xsd:unsignedInt">10</slaveRestartDelaySecs>
-				<nbDqmUpdates xsi:type="xsd:unsignedInt">0</nbDqmUpdates>
 				<runNumber xsi:type="xsd:unsignedInt">1</runNumber>
 			</properties>
 		</xc:Application>
@@ -246,7 +245,6 @@
 				<nbSubProcesses xsi:type="xsd:unsignedInt">1</nbSubProcesses>
 				<autoRestartSlaves xsi:type="xsd:boolean">true</autoRestartSlaves>
 				<slaveRestartDelaySecs xsi:type="xsd:unsignedInt">10</slaveRestartDelaySecs>
-				<nbDqmUpdates xsi:type="xsd:unsignedInt">0</nbDqmUpdates>
 				<runNumber xsi:type="xsd:unsignedInt">1</runNumber>
 			</properties>
 		</xc:Application>
