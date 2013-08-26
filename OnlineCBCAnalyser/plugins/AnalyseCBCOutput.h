@@ -39,6 +39,7 @@ namespace cbcanalyser
 		void readI2CValues();
 		std::string outputFilename_;
 		void writeOutput();
+		std::ostream* pOutput_;
 		std::ofstream outputFile_;
 		std::vector<TH1*> pTestHistograms_;
 		TH1* pAllChannels_;

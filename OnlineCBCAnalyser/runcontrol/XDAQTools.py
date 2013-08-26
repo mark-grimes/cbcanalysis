@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ElementTree
-import httplib
+import httplib, urllib
 import xdglib
 
 class ETElementExtension( ElementTree._ElementInterface ) :
@@ -77,6 +77,8 @@ class Context(object) :
 		self.jobid = response.getchildnamed("Body").getchildnamed("jidResponse").getchildnamed("jid").text
 
 	def killProcess(self) :
+		if self.jobid==-1 :
+			return False
 		response=ElementTree.fromstring( xdglib.sendConfigurationKillCommand( "http://"+self.host+":"+self.port, self.jobid ) )
 		response.__class__=ETElementExtension
 		reply=response.getchildnamed("Body").getchildnamed("getStateResponse").getchildnamed("reply").text
@@ -194,4 +196,7 @@ class Program(object) :
 	def sendAllMatchingApplicationsCommand( self, command, className, instance=None ) :
 		matchingApps=self.findAllMatchingApplications( className, instance )
 		for application in matchingApps :
-			application.sendCommand( command )
+			try:
+				application.sendCommand( command )
+			except:
+				print "Unable to contact "+str(application)

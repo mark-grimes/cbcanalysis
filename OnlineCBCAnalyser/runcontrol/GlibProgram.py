@@ -137,3 +137,10 @@ class GlibProgram( XDAQTools.Program ) :
 		self.sendAllMatchingApplicationsCommand( "Enable", "evf::FUResourceBroker" )
 		self.sendAllMatchingApplicationsCommand( "start", "GlibStreamer" )
 		
+	def stop(self) :
+		self.sendAllMatchingApplicationsCommand( "stop", "GlibStreamer" )
+		self.sendAllMatchingApplicationsCommand( "Halt", "GlibSupervisor" )
+		self.sendAllMatchingApplicationsCommand( "Stop", "TrackerManager" )
+		self.sendAllMatchingApplicationsCommand( "Stop", "StorageManager" )
+		self.sendAllMatchingApplicationsCommand( "Stop", "evf::FUEventProcessor" )
+		self.sendAllMatchingApplicationsCommand( "Stop", "evf::FUResourceBroker" )

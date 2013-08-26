@@ -24,7 +24,9 @@ cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config
 	: channels_(128)
 {
 	outputFile_.open( "/home/xtaldaq/testOutput.log", std::ios_base::out | std::ios_base::app );
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
+	pOutput_=&std::cout;
+
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
 
 	I2CValuesFilename_=config.getParameter<std::string>("trimFilename");
 	outputFilename_=config.getParameter<std::string>("outputFilename");
@@ -44,24 +46,24 @@ cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config
 
 cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()
 {
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()" << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()" << std::endl;
 	outputFile_.close();
 }
 
 void cbcanalyser::AnalyseCBCOutput::fillDescriptions( edm::ConfigurationDescriptions& descriptions )
 {
-	//outputFile_ << "cbcanalyser::AnalyseCBCOutput::fillDescriptions()" << std::endl;
+	//(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::fillDescriptions()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginJob()
 {
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm::EventSetup& setup )
 {
 	++eventsProcessed_;
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::analyze() event " << eventsProcessed_ << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::analyze() event " << eventsProcessed_ << std::endl;
 
 	edm::Handle<FEDRawDataCollection> hRawData;
 	event.getByLabel( "rawDataCollector", hRawData );
@@ -130,12 +132,12 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 
 void cbcanalyser::AnalyseCBCOutput::endJob()
 {
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::endJob()" << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::endJob()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::EventSetup& setup )
 {
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::beginRun()" << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::beginRun()" << std::endl;
 	try { readI2CValues(); }
 	catch( std::exception& error )
 	{
@@ -146,7 +148,7 @@ void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::Ev
 
 void cbcanalyser::AnalyseCBCOutput::endRun( const edm::Run& run, const edm::EventSetup& setup )
 {
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events." << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events." << std::endl;
 	//edm::Service<TFileService>()->file().Write();
 	if( eventsProcessed_>0 )
 	{
@@ -160,12 +162,12 @@ void cbcanalyser::AnalyseCBCOutput::endRun( const edm::Run& run, const edm::Even
 
 void cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock()" << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	outputFile_ << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock()" << std::endl;
+	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::readI2CValues()
