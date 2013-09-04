@@ -4,7 +4,6 @@
 	xmlns:xc="http://xdaq.web.cern.ch/xdaq/xsd/2004/XMLConfiguration-30"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<i2o:protocol xmlns:i2o="http://xdaq.web.cern.ch/xdaq/xsd/2004/I2OConfiguration-30">
-		<!--i2o:target class="rubuilder::fu::Application" instance="0" tid="30"/ -->
 		<i2o:target class="pt::atcp::PeerTransportATCP" instance="0" tid="31"/>
 		<i2o:target class="pt::atcp::PeerTransportATCP" instance="1" tid="32"/>
 		<i2o:target class="pt::atcp::PeerTransportATCP" instance="2" tid="33"/>
@@ -28,21 +27,19 @@
 		<xc:Application class="rubuilder::evm::Application" id="215" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:rubuilder::evm::Application" xsi:type="soapenc:Struct">
 				<generateDummyTriggers xsi:type="xsd:boolean">false</generateDummyTriggers>
-				<!--workLoopName xsi:type="xsd:string">BU/EVM/RU</workLoopName -->
 				<taClass xsi:type="xsd:string">TrackerManager</taClass>
 				<taInstance xsi:type="xsd:unsignedInt">0</taInstance>
 				<nbEvtIdsInBuilder xsi:type="xsd:unsignedInt">64</nbEvtIdsInBuilder>
 				<triggerFIFOCapacity xsi:type="xsd:unsignedInt">2000</triggerFIFOCapacity>
 				<triggerSource xsi:type="xsd:string">TA</triggerSource>
 			</properties>
-			<xc:Unicast class="rubuilder::ru::Application" instance="0" network="dhcalatcp"></xc:Unicast>
-			<xc:Unicast class="rubuilder::bu::Application" instance="0" network="dhcalatcp"></xc:Unicast>
+			<xc:Unicast class="rubuilder::ru::Application" instance="0" network="dhcalatcp"/>
+			<xc:Unicast class="rubuilder::bu::Application" instance="0" network="dhcalatcp"/>
 		</xc:Application>
 		<xc:Application class="TrackerManager" id="220" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:TrackerManager" xsi:type="soapenc:Struct">
 				<triggerControllerApplicationName xsi:type="xsd:string">GenericTTCciSupervisor</triggerControllerApplicationName>
 				<NumberOfEventPerLoop xsi:type="xsd:unsignedLong">0</NumberOfEventPerLoop>
-				<!--EventShift xsi:type="xsd:unsignedLong">0</EventShift -->
 				<RunType xsi:type="xsd:unsignedLong">27</RunType>
 				<CheckEVB xsi:type="xsd:boolean">false</CheckEVB>
 				<NoTriggerController xsi:type="xsd:boolean">true</NoTriggerController>
@@ -52,7 +49,7 @@
 				<NumberOfRequestedTriggers xsi:type="xsd:unsignedLong">0</NumberOfRequestedTriggers>
 				<DelaySpy xsi:type="xsd:unsignedLong">0</DelaySpy>
 			</properties>
-			<xc:Unicast class="GlibStreamer" instance="0" network="dhcalatcp"></xc:Unicast>
+			<xc:Unicast class="GlibStreamer" instance="0" network="dhcalatcp"/>
 		</xc:Application>
 		<xc:Application class="pt::atcp::PeerTransportATCP" id="232" instance="2" network="local">
 			<properties xmlns="urn:xdaq-application:pt::atcp::PeerTransportATCP" xsi:type="soapenc:Struct">
@@ -102,7 +99,7 @@
 				<RUName xsi:type="xsd:string">rubuilder::ru::Application</RUName>
 				<RU xsi:type="xsd:integer">0</RU>
 			</properties>
-			<xc:Unicast class="TrackerManager" instance="0" network="dhcalatcp"></xc:Unicast>
+			<xc:Unicast class="TrackerManager" instance="0" network="dhcalatcp"/>
 		</xc:Application>
 		<xc:Application class="rubuilder::ru::Application" id="205" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:rubuilder::ru::Application" xsi:type="soapenc:Struct">
@@ -110,7 +107,7 @@
 				<!--workLoopName xsi:type="xsd:string">BU/EVM/RU</workLoopName -->
 				<nbEvtIdsInBuilder xsi:type="xsd:unsignedInt">64</nbEvtIdsInBuilder>
 			</properties>
-			<xc:Unicast class="rubuilder::evm::Application" instance="0" network="dhcalatcp"></xc:Unicast>
+			<xc:Unicast class="rubuilder::evm::Application" instance="0" network="dhcalatcp"/>
 		</xc:Application>
 		<xc:Application class="rubuilder::bu::Application" id="210" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:rubuilder::bu::Application" xsi:type="soapenc:Struct">
@@ -118,31 +115,21 @@
 				<maxEvtsUnderConstruction xsi:type="xsd:unsignedInt">64</maxEvtsUnderConstruction>
 				<nbEvtIdsInBuilder xsi:type="xsd:unsignedInt">64</nbEvtIdsInBuilder>
 			</properties>
-			<xc:Unicast class="rubuilder::evm::Application" instance="0" network="dhcalatcp"></xc:Unicast>
+			<xc:Unicast class="rubuilder::evm::Application" instance="0" network="dhcalatcp"/>
 			<xc:Unicast class="evf::FUResourceBroker" instance="0" network="dhcalatcp"/>
-
-
 		</xc:Application>
-		<!--xc:Application class="rubuilder::fu::Application" id="190" instance="0" 
-			network="local"> <properties xmlns="urn:xdaq-application:rubuilder::fu::Application" 
-			xsi:type="soapenc:Struct"> <buInstNb xsi:type="xsd:unsignedInt">0</buInstNb> 
-			</properties> <xc:Unicast class="rubuilder::evm::Application" instance="0" 
-			network="dhcalatcp"></xc:Unicast> </xc:Application -->
 		<xc:Application class="pt::atcp::PeerTransportATCP" id="231" instance="1" network="local">
 			<properties xmlns="urn:xdaq-application:pt::atcp::PeerTransportATCP" xsi:type="soapenc:Struct">
 				<autoSize xsi:type="xsd:boolean">false</autoSize>
 				<syncronousSend xsi:type="xsd:boolean">false</syncronousSend>
 				<maxPacketSize xsi:type="xsd:unsignedInt">256000</maxPacketSize>
 			</properties>
-			<!--fileCatalog xsi:type="xsd:string">summaryCatalog.txt</fileCatalog -->
 		</xc:Application>
 		<xc:Module>/opt/xdaq/lib/libxdaq2rc.so</xc:Module>
 		<xc:Module>/opt/xdaq/lib/librubuilderutils.so</xc:Module>
 		<xc:Module>/home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibStreamer/lib/linux/x86_64_slc5/libGlibStreamer.so </xc:Module>
 		<xc:Module>/opt/xdaq/lib/librubuilderru.so</xc:Module>
 		<xc:Module>/opt/xdaq/lib/librubuilderbu.so</xc:Module>
-		<!--xc:Module>/opt/xdaq/lib/librubuilderfu.so</xc:Module -->
-		<!--xc:Module>/home/xtaldaq/trackerDAQ-3.1/usr/local/src/xdaq/baseline11/daq/rubuilder/fu/lib/linux/x86_64_slc5/librubuilderfu.so</xc:Module -->
 		<xc:Module>/opt/xdaq/lib/libptatcp.so</xc:Module>
 	</xc:Context>
 
@@ -209,7 +196,7 @@
 		<xc:Endpoint hostname="localhost" network="dhcalatcp" port="31810" protocol="atcp" service="i2o"/>
 		<xc:Application class="evf::FUEventProcessor" id="61" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:evf::FUEventProcessor" xsi:type="soapenc:Struct">
-				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CMSSWReleases/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
+				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CMSSWReleases/GLibTestStand/src/XtalDAQ/OnlineCBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
 				<hasPrescaleService xsi:type="xsd:boolean">false</hasPrescaleService>
 				<hasModuleWebRegistry xsi:type="xsd:boolean">true</hasModuleWebRegistry>
 				<hasServiceWebRegistry xsi:type="xsd:boolean">true</hasServiceWebRegistry>
@@ -229,7 +216,7 @@
 		</xc:Application>
 		<xc:Module>/opt/xdaq/lib/libptatcp.so</xc:Module>
 		<xc:Module>/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/libEventFilterProcessor.so</xc:Module>
-		<xc:Module>/home/xtaldaq/CMSSWReleases/CMSSW_5_3_4/lib/slc5_amd64_gcc462/pluginXtalDAQOnlineCBCAnalyserPlugins.so</xc:Module>
+		<xc:Module>/home/xtaldaq/CMSSWReleases/GLibTestStand/lib/slc5_amd64_gcc462/pluginXtalDAQOnlineCBCAnalyserPlugins.so</xc:Module>
 	</xc:Context>
 
 </xc:Partition>

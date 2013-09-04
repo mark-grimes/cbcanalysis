@@ -1,4 +1,5 @@
 import GlibProgram
 
-program=GlibProgram.GlibProgram( "onlineAnalysis.xml" )
+program=GlibProgram.GlibProgram( "analysisTest.xml" )
+
 

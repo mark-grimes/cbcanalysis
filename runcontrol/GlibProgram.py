@@ -138,6 +138,7 @@ class GlibProgram( XDAQTools.Program ) :
 		self.sendAllMatchingApplicationsCommand( "start", "GlibStreamer" )
 		
 	def stop(self) :
+		
 		self.sendAllMatchingApplicationsCommand( "stop", "GlibStreamer" )
 		self.sendAllMatchingApplicationsCommand( "Halt", "GlibSupervisor" )
 		self.sendAllMatchingApplicationsCommand( "Stop", "TrackerManager" )

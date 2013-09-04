@@ -4,6 +4,7 @@
 #include <fstream>
 #include <FWCore/Framework/interface/Frameworkfwd.h>
 #include <FWCore/Framework/interface/EDAnalyzer.h>
+#include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
 
 //
 // Forward declarations
@@ -35,22 +36,34 @@ namespace cbcanalyser
 		virtual void beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup );
 		virtual void endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup );
 	protected:
-		std::string I2CValuesFilename_;
+		/** @brief Save the current state to disk so that another AnalyseCBCOutput can be restored to the same state.
+		 *
+		 * I've been having a lot of problems with the DAQ runcontrol. The only way I can take multiple runs (as of
+		 * 04/Sep/2013) is to kill all the processes and start again, so I need a way of restoring the analyser's
+		 * state after a run.
+		 */
+		void saveState( const std::string& filename );
+		/** @brief Restore to the state that was saved to a call to saveState.
+		 *
+		 * See the note on saveState for an explanation of why this is necassary.
+		 */
+		void restoreState( const std::string& filename );
+		/** @brief Filename to save the state to. Optional - if empty the state is not restored or saved to disk. */
+		std::string savedStateFilename_;
+
+		DetectorSCurves detectorSCurves_;
+
+		/** @brief Reads strip threshold offsets from the filename stored in I2CValuesFilename_ and store them
+		 * in stripThresholdOffsets_.
+		 *
+		 * @post  stripThresholdOffsets_ is overwritten with any entries in the file specified in I2CValuesFilename_.
+		 */
 		void readI2CValues();
-		std::string outputFilename_;
-		void writeOutput();
-		std::ostream* pOutput_;
-		std::ofstream outputFile_;
-		std::vector<TH1*> pTestHistograms_;
-		TH1* pAllChannels_;
-		struct ChannelData
-		{
-			size_t numberOn;
-			size_t numberOff;
-			float threshold;
-		};
-		std::vector<ChannelData> channels_;
+		std::string I2CValuesFilename_;
+		std::vector<unsigned int> stripThresholdOffsets_;
+
 		size_t eventsProcessed_;
+		size_t runsProcessed_;
 	};
 
 } // end of namespace cbcanalyser

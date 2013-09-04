@@ -145,17 +145,21 @@ class Program(object) :
 	Date 29/Aug/2013
 	"""
 	def __init__( self, xdaqConfigFilename ) :
+		self.xdaqConfigFilename = xdaqConfigFilename
+		self.reloadXDAQConfig()
+
+	def reloadXDAQConfig( self ) :
 		self.contexts = []
-		tree=ElementTree.parse( xdaqConfigFilename )
+		tree=ElementTree.parse( self.xdaqConfigFilename )
 		for node in tree.getroot().getchildren() :
 			try :
-				newContext=Context( node, xdaqConfigFilename )
+				newContext=Context( node, self.xdaqConfigFilename )
 				self.contexts.append( newContext )
 			except Exception as error :
 				# Some of these nodes might not be Contexts, so don't print any errors for those
 				if( str(error)!="Not a Context node" ) :
 					print "Unable to create context for node",str(node),"because",str(error)
-					
+
 	def startAllProcesses( self ) :
 		for context in self.contexts:
 			context.startProcess()
@@ -169,15 +173,16 @@ class Program(object) :
 			for application in context.applications :
 				application.sendCommand( command )
 
-	def printAllStates( self ) :
+	def printAllStates( self, hideComms=False ) :
 		for context in self.contexts :
 			firstApplication=True
 			for application in context.applications :
-				if firstApplication :
-					contextString=context.host+":"+str(context.port)+" (job ID="+str(context.jobid)+")"
-					firstApplication=False
-				else : contextString=""
-				print contextString.ljust(40)+application.className.ljust(30)+str(application.instance).rjust(4)+"   "+application.getState()
+				if (not hideComms) or application.className!="pt::atcp::PeerTransportATCP" :
+					if firstApplication :
+						contextString=context.host+":"+str(context.port)+" (job ID="+str(context.jobid)+")"
+						firstApplication=False
+					else : contextString=""
+					print contextString.ljust(40)+application.className.ljust(30)+str(application.instance).rjust(4)+"   "+application.getState()
 
 	def findAllMatchingApplications( self, className, instance=None ) :
 		"""

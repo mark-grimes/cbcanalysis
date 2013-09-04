@@ -14,7 +14,7 @@ namespace sistrip
 
 namespace cbcanalyser
 {
-	/** @brief Simple utility class to unpack the bits from the CBC1 and present the result has a 128 bool vector.
+	/** @brief Simple utility class to unpack the bits from the CBC1 and present the result as a 128 bool vector.
 	 *
 	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
 	 * @date 28/May/2013

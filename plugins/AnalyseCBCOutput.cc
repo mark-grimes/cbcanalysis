@@ -19,51 +19,68 @@ namespace cbcanalyser
 	DEFINE_FWK_MODULE(AnalyseCBCOutput);
 }
 
+namespace // Use the unnamed namespace for tools only used in this file
+{
+	/** @brief Closes the fstream as soon as it goes out of scope.
+	 *
+	 * Used as an exception safe way to close files.
+	 *
+	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
+	 * @date 04/Sep/2013
+	 */
+	class FileStreamSentry
+	{
+	public:
+		FileStreamSentry( std::fstream& fileStream ) : fileStream_(fileStream) {}
+		~FileStreamSentry() { fileStream_.close(); }
+	private:
+		std::fstream& fileStream_;
+	};
+
+}
 
 cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config )
-	: channels_(128)
+	: stripThresholdOffsets_(128)
 {
-	outputFile_.open( "/home/xtaldaq/testOutput.log", std::ios_base::out | std::ios_base::app );
-	pOutput_=&std::cout;
-
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
 
 	I2CValuesFilename_=config.getParameter<std::string>("trimFilename");
-	outputFilename_=config.getParameter<std::string>("outputFilename");
+	savedStateFilename_=config.getUntrackedParameter<std::string>("savedStateFilename","");
 
-	edm::Service<TFileService> pFileService;
-	std::stringstream stringConverter;
+	if( !savedStateFilename_.empty() ) restoreState( savedStateFilename_ );
 
-	for( size_t channel=0; channel<128; ++channel )
-	{
-		stringConverter.str("");
-		stringConverter << "occupancyChannel" << channel;
-		TH1* pNewHistogram=pFileService->make<TH1F>( stringConverter.str().c_str(), stringConverter.str().c_str(), 100, 0, 100 );
-		pTestHistograms_.push_back( pNewHistogram );
-	}
-	pAllChannels_=pFileService->make<TH1F>( "allChannels", "allChannels", 128, -0.5, 127.5 );
 }
 
 cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()
 {
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()" << std::endl;
-	outputFile_.close();
+	std::cout << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()" << std::endl;
+
+	//
+	// If the constructor is called then job has reached it's natural conclusion.
+	// Truncate the state file so that the next job starts fresh.
+	//
+	if( !savedStateFilename_.empty() )
+	{
+		std::fstream blankFile( savedStateFilename_, std::ios_base::out | std::ios_base::trunc );
+		blankFile.close();
+	}
 }
 
 void cbcanalyser::AnalyseCBCOutput::fillDescriptions( edm::ConfigurationDescriptions& descriptions )
 {
-	//(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::fillDescriptions()" << std::endl;
+	//std::cout << "cbcanalyser::AnalyseCBCOutput::fillDescriptions()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginJob()
 {
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
+	++runsProcessed_;
 }
 
 void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm::EventSetup& setup )
 {
 	++eventsProcessed_;
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::analyze() event " << eventsProcessed_ << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::analyze() event " << eventsProcessed_ << std::endl;
 
 	edm::Handle<FEDRawDataCollection> hRawData;
 	event.getByLabel( "rawDataCollector", hRawData );
@@ -100,24 +117,19 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 						cbcanalyser::CBCChannelUnpacker unpacker(channel);
 						if( !unpacker.hasData() ) continue;
 
+						cbcanalyser::FedChannelSCurves& fedChannelSCurves=detectorSCurves_.getFedChannelSCurves( fedIndex, channelIndex );
+
 						const std::vector<bool>& hits=unpacker.hits();
 
 						// For testing I'll just output the results to std::cout
 						for( size_t stripNumber=0; stripNumber<hits.size(); ++stripNumber )
 						{
-							if( hits[stripNumber]==true )
-							{
-								pAllChannels_->Fill( stripNumber );
-								++channels_[stripNumber].numberOn;
-							}
-							else ++channels_[stripNumber].numberOff;
+							cbcanalyser::SCurve& sCurve=fedChannelSCurves.getStripSCurve(stripNumber);
+							cbcanalyser::SCurveEntry& sCurveEntry=sCurve.getEntry( stripThresholdOffsets_[stripNumber] );
+
+							if( hits[stripNumber]==true ) ++sCurveEntry.eventsOn();
+							else ++sCurveEntry.eventsOff();
 						}
-						//for( std::vector<bool>::const_iterator iHit=hits.begin(); iHit!=hits.end(); ++iHit )
-						//{
-						//	if( *iHit==true ) std::cout << "1";
-						//	else std::cout << " ";
-						//}
-						//std::cout << std::endl;
 					}
 				}
 			}
@@ -132,12 +144,19 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 
 void cbcanalyser::AnalyseCBCOutput::endJob()
 {
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::endJob()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::endJob(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+
+	//
+	// Now that the job has finished, create root histograms from all of the
+	// data that has been collected.
+	//
+	edm::Service<TFileService> pFileService;
+	detectorSCurves_.createHistograms( &pFileService->file() );
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::EventSetup& setup )
 {
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::beginRun()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::beginRun()" << std::endl;
 	try { readI2CValues(); }
 	catch( std::exception& error )
 	{
@@ -148,26 +167,19 @@ void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::Ev
 
 void cbcanalyser::AnalyseCBCOutput::endRun( const edm::Run& run, const edm::EventSetup& setup )
 {
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events." << std::endl;
-	//edm::Service<TFileService>()->file().Write();
-	if( eventsProcessed_>0 )
-	{
-		try { writeOutput(); }
-		catch( std::exception& error )
-		{
-			std::cerr << "writeOutput() failed because: " << error.what() << std::endl;
-		}
-	}
+	std::cout << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+
+	if( !savedStateFilename_.empty() ) saveState( savedStateFilename_ );
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	(*pOutput_) << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::readI2CValues()
@@ -201,13 +213,13 @@ void cbcanalyser::AnalyseCBCOutput::readI2CValues()
 				if( channelNumber<0 || channelNumber>127 ) throw std::runtime_error( "Unknown channel number "+channelNumberAsString);
 
 				int threshold=cbcanalyser::tools::convertHexToInt(columns[3]);
-				channels_[channelNumber].threshold=threshold;
+				stripThresholdOffsets_[channelNumber]=threshold;
 			}
 
 		} // end of try block
 		catch( std::runtime_error& exception )
 		{
-			std::cout << "Some error occured while processing the line \"" << buffer << "\":" << exception.what() << std::endl;
+			std::cout << "Some error occurred while processing the line \"" << buffer << "\":" << exception.what() << std::endl;
 		}
 	}
 
@@ -215,18 +227,36 @@ void cbcanalyser::AnalyseCBCOutput::readI2CValues()
 	trimFile.close();
 }
 
-void cbcanalyser::AnalyseCBCOutput::writeOutput()
+void cbcanalyser::AnalyseCBCOutput::saveState( const std::string& filename )
 {
-	std::fstream outputFile( outputFilename_, std::ios_base::out | std::ios_base::app );
-	if( !outputFile.is_open() ) throw std::runtime_error( "Unable to open the output file \""+outputFilename_+"\"");
+	std::fstream outputFile( filename, std::ios_base::out | std::ios_base::trunc );
+	if( !outputFile.is_open() ) throw std::runtime_error( "Unable to open the output file \""+filename+"\" to save the analyser state.");
+	FileStreamSentry closeFileSentry(outputFile);
 
-	for( size_t channelNumber=0; channelNumber<128; ++channelNumber )
-	{
-		outputFile << "Channel " << std::setw(5) << channelNumber
-				<< std::setw(10) << channels_[channelNumber].threshold << " "
-				<< std::setw(10) << channels_[channelNumber].numberOn << " "
-				<< std::setw(10) << channels_[channelNumber].numberOff << "\n";
-	}
+	detectorSCurves_.dumpToStream( outputFile );
 
-	outputFile.close();
+	outputFile << "stripThresholdOffsets_ " << stripThresholdOffsets_.size() << " ";
+	for( const auto& offset : stripThresholdOffsets_ ) outputFile << offset << " ";
+
+	outputFile << eventsProcessed_ << " " << runsProcessed_ << " ";
+}
+
+void cbcanalyser::AnalyseCBCOutput::restoreState( const std::string& filename )
+{
+	std::fstream inputFile( filename, std::ios_base::in );
+	if( !inputFile.is_open() ) throw std::runtime_error( "Unable to open the input file \""+filename+"\" to restore the analyser state.");
+	FileStreamSentry closeFileSentry(inputFile);
+
+	detectorSCurves_.restoreFromStream( inputFile );
+
+	std::string identifier;
+	inputFile >> identifier;
+	if( identifier!="stripThresholdOffsets_" ) throw std::runtime_error( "AnalyseCBCOutput::restoreState - didn't read stripThresholdOffsets_ tag." );
+
+	size_t entries;
+	inputFile >> entries;
+	stripThresholdOffsets_.resize(entries);
+	for( size_t index=0; index<entries; ++index ) inputFile >> stripThresholdOffsets_[index];
+
+	inputFile >> eventsProcessed_ >> runsProcessed_;
 }
