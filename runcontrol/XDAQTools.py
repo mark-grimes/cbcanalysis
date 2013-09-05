@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ElementTree
 import httplib, urllib
 import xdglib
+import time
 
 class ETElementExtension( ElementTree._ElementInterface ) :
 	"""
@@ -64,18 +65,21 @@ class Context(object) :
 				# Loop over the items and record the url and port
 				for item in child.items() :
 					if item[0]=="class" : className=item[1]
+					elif item[0]=="id" : id=item[1]
 					elif item[0]=="instance" : instance=item[1]
 				# Now try and create the Application object and add it to the return value
-				newApplication=Application( self.host, int(self.port), className, int(instance) )
+				newApplication=Application( self.host, int(self.port), className, int(instance), int(id) )
 				self.applications.append( newApplication )
+
 	def __repr__(self) :
 		return "<XDAQ Context "+self.host+", "+str(self.port)+", "+self.jobid+">"
+
 	def startProcess(self) :
 		self.jobid=-1
 		response=ElementTree.fromstring( xdglib.sendConfigurationStartCommand( "http://"+self.host+":"+self.port, self.configFilename ) )
 		response.__class__=ETElementExtension
 		self.jobid = response.getchildnamed("Body").getchildnamed("jidResponse").getchildnamed("jid").text
-
+		
 	def killProcess(self) :
 		if self.jobid==-1 :
 			return False
@@ -87,6 +91,34 @@ class Context(object) :
 			self.jobid=-1
 			return True
 
+	def waitUntilProcessStarted( self, timeout=30.0 ) :
+		"""
+		Blocks until the process has started and all applications are contactable, or throws an exception if
+		"timeout" seconds have passed.
+		"""
+		timeoutEndTime=time.time()+timeout;
+		while True :
+			allAplicationsStarted=True
+			for application in self.applications:
+				if application.getState()=="<uncontactable>": allAplicationsStarted=False
+				if allAplicationsStarted: return
+				if timeoutEndTime<time.time() : raise Exception("Context "+repr(self)+" did not start all applications within "+str(timeout)+" seconds.")
+				time.sleep(0.5)
+
+	def waitUntilProcessKilled( self, timeout=10.0 ) :
+		"""
+		Blocks until the process has stopped and all applications are uncontactable, or throws an exception if
+		"timeout" seconds have passed.
+		"""
+		timeoutEndTime=time.time()+timeout;
+		while True :
+			allAplicationsStopped=True
+			for application in self.applications:
+				if application.getState()!="<uncontactable>": allAplicationsStopped=False
+				if allAplicationsStopped: return
+				if timeoutEndTime<time.time() : raise Exception("Context "+repr(self)+" did not start all applications within "+str(timeout)+" seconds.")
+				time.sleep(0.5)
+
 class Application(object) :
 	"""
 	Class representing XDAQ Applications.
@@ -94,12 +126,12 @@ class Application(object) :
 	Author Mark Grimes (mark.grimes@bristol.ac.uk)
 	Date 28/Aug/2013
 	"""
-	def __init__(self, host, port, className, instance ) :
+	def __init__(self, host, port, className, instance, id ) :
 		self.host=host
 		self.port=port
 		self.className=className
 		self.instance=instance
-		self.jid=-1
+		self.id=id
 		self.connection=httplib.HTTPConnection( self.host+":"+str(self.port) )
 		# Make sure the connection is closed, because all the other methods assume
 		# it's in that state. Presumably the connection will have failed at that
@@ -122,6 +154,18 @@ class Application(object) :
 				return "<unknown>"
 		except : return "<uncontactable>"
 
+	def waitForState(self,state,timeout=5.0):
+		"""
+		Blocks until the state of the application has reached the one specified, or if "timeout" seconds
+		have passed then an exception will be thrown. If timeout is negative then the application must
+		already be in the desired state or the exception is thrown immediately.
+		"""
+		timeoutEndTime=time.time()+timeout;
+		while True :
+			if self.getState()==state : return
+			if timeoutEndTime<time.time() : raise Exception("Application "+repr(self)+" did not reach state "+state+" within "+str(timeout)+" seconds.")
+			time.sleep(0.2)
+			
 	def httpRequest( self, requestType, resource, parameters={} ) :
 		"""
 		Send an http request to the application to the resource specified, with
@@ -133,6 +177,10 @@ class Application(object) :
 		headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
 		self.connection.request( requestType, urllib.quote(resource), urllib.urlencode(parameters), headers )
 		response = self.connection.getresponse()
+		# I need to "read" the response message before the connection gets closed.
+		# I'll store the message in a custom member of the response class that gets
+		# returned to the user.
+		response.fullMessage=response.read()
 		self.connection.close()
 		return response
 
@@ -167,6 +215,16 @@ class Program(object) :
 	def killAllProcesses( self ) :
 		for context in self.contexts:
 			context.killProcess()
+			
+	def waitUntilAllProcessesStarted( self, timeout=30.0 ) :
+		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
+		for context in self.contexts:
+			context.waitUntilProcessStarted( timeout-(time.time()-startTime) )
+
+	def waitUntilAllProcessesKilled( self, timeout=10.0 ) :
+		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
+		for context in self.contexts:
+			context.waitUntilProcessKilled( timeout-(time.time()-startTime) )
 
 	def sendAllCommand( self, command ) :
 		for context in self.contexts :
@@ -205,3 +263,15 @@ class Program(object) :
 				application.sendCommand( command )
 			except:
 				print "Unable to contact "+str(application)
+
+	def waitAllMatchingApplicationsForState( self, state, timeout, className, instance=None ) :
+		"""
+		Blocks until all applications that match the specifics given reach the state given, or
+		throws an exception if "timeout" seconds have elapsed.
+		"""
+		matchingApps=self.findAllMatchingApplications( className, instance )
+		for application in matchingApps :
+			try:
+				application.waitForState( state, timeout )
+			except Exception as error:
+				print str(error)
