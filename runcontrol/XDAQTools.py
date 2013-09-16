@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ElementTree
 import httplib, urllib
 import xdglib
 import time
+import os
 
 class ETElementExtension( ElementTree._ElementInterface ) :
 	"""
@@ -28,6 +29,80 @@ class ETElementExtension( ElementTree._ElementInterface ) :
 		result=self.getchildrennamed( name )
 		if len(result)==0 : return None
 		else : return result[0]
+
+def makeMessage( configFilename ) :
+	forcedEnvironmentVariables={'ENV_CMS_TK_FEC_ROOT':'/opt/trackerDAQ'}
+	requiredEnvironmentVariableNames=['ENV_CMS_TK_FEC_ROOT','ENV_CMS_TK_FED9U_ROOT','HODGEPODGE']
+	environmentVariables={}
+	for variableName in requiredEnvironmentVariableNames:
+		try:
+			environmentVariables[variableName]=forcedEnvironmentVariables[variableName]
+		except KeyError:
+			variable=os.getenv(variableName)
+			if variable==None: raise Exception("Environment variable "+variableName+" has not been set and is not available from the current environment")
+			environmentVariables[variableName]=variable
+
+
+	msg = """<?xml version="1.0" encoding="UTF-8"?>
+	<SOAP-ENV:Envelope
+	 SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+	 xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	 xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+	<SOAP-ENV:Header>
+	</SOAP-ENV:Header>
+	<SOAP-ENV:Body>
+	<xdaq:startXdaqExe execPath="""+'"'+environmentVariables['XDAQ_ROOT']+"""/bin/xdaq.exe" user="xtaldaq" argv="-p '+contextPort+' -l INFO" xmlns:xdaq="urn:xdaq-soap:3.0" >
+	<EnvironmentVariable """
+	for key in environmentVariables:
+		msg+=key+'="'+environmentVariables[key]+'" '
+#	msg+="""XDAQ_ROOT="/opt/xdaq"
+#	XDAQ_OS="linux"
+#	XDAQ_PLATFORM="x86_64_slc5"
+#	XDAQ_DOCUMENT_ROOT="/opt/xdaq/htdocs"
+#	XDAQ_ELOG="SET"
+#	DIM_DNS_NODE="'+dimnode+'"
+#	ROOTSYS="/home/xtaldaq/root/"
+#	LD_LIBRARY_PATH="/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/CMSSWReleases/GLibTestStand/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib" PYTHONPATH="/usr/lib64/python2.4:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/cfipython/slc5_amd64_gcc462:"
+#	PYTHONHOME="/usr/lib64/python2.4"
+#	CMSSW_SEARCH_PATH="/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src/"
+#	ENV_CMS_TK_FEC_ROOT="/opt/trackerDAQ"
+#	ENV_CMS_TK_FED9U_ROOT="/opt/trackerDAQ"
+#	ENV_CMS_TK_TTC_ROOT="/opt/TTCSoftware"
+#	ENV_CMS_TK_LTC_ROOT="/opt/TTCSoftware"
+#	ENV_CMS_TK_TTCCI_ROOT="/opt/TTCSoftware"
+#	HOME="/home/xtaldaq"
+#	ENV_CMS_TK_PARTITION="XY_10-JUN-2009_2"
+#	ENV_CMS_TK_CAEN_ROOT="/opt/xdaq"
+#	ENV_CMS_TK_HARDWARE_ROOT="/opt/trackerDAQ"
+#	ENV_CMS_TK_APVE_ROOT="/opt/APVe"
+#	ENV_CMS_TK_SBS_ROOT="/opt/trackerDAQ"
+#	ENV_CMS_TK_HAL_ROOT="/opt/xdaq"
+#	APVE_ROOT="/opt/APVe"
+#	ENV_CMS_TK_DIAG_ROOT="/opt/trackerDAQ"
+#	HOSTNAME="localhost"
+#	SCRATCH="/tmp"
+#	ENV_TRACKER_DAQ="/opt/trackerDAQ"
+#	SEAL_PLUGINS="/opt/cmsswLocal/module"
+#	CMSSW_BASE="/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4"
+#	CMSSW_VERSION="CMSSW_5_3_4"
+#	POOL_OUTMSG_LEVEL="4"
+#	POOL_STORAGESVC_DB_AGE_LIMIT="10" >
+	msg+="""</EnvironmentVariable>
+	<ConfigFile>
+	<![CDATA[\n"""
+  
+	configFile=open(configFilename)
+	for line in configFile.readlines():
+		msg = msg + line
+  
+	msg = msg+ """]]>
+	</ConfigFile>
+	</xdaq:startXdaqExe>
+	</SOAP-ENV:Body>
+	</SOAP-ENV:Envelope>"""
+	return msg
 
 		
 class Context(object) :
@@ -72,7 +147,7 @@ class Context(object) :
 				self.applications.append( newApplication )
 
 	def __repr__(self) :
-		return "<XDAQ Context "+self.host+", "+str(self.port)+", "+self.jobid+">"
+		return "<XDAQ Context "+self.host+", "+str(self.port)+", "+str(self.jobid)+">"
 
 	def startProcess(self) :
 		self.jobid=-1
@@ -116,7 +191,7 @@ class Context(object) :
 			for application in self.applications:
 				if application.getState()!="<uncontactable>": allAplicationsStopped=False
 				if allAplicationsStopped: return
-				if timeoutEndTime<time.time() : raise Exception("Context "+repr(self)+" did not start all applications within "+str(timeout)+" seconds.")
+				if timeoutEndTime<time.time() : raise Exception("Context "+repr(self)+" did not kill all applications within "+str(timeout)+" seconds.")
 				time.sleep(0.5)
 
 class Application(object) :
@@ -166,7 +241,7 @@ class Application(object) :
 			if timeoutEndTime<time.time() : raise Exception("Application "+repr(self)+" did not reach state "+state+" within "+str(timeout)+" seconds.")
 			time.sleep(0.2)
 			
-	def httpRequest( self, requestType, resource, parameters={} ) :
+	def httpRequest( self, requestType, resource, parameters={}, storeMessage=True ) :
 		"""
 		Send an http request to the application to the resource specified, with
 		optional parameters specified as a dictionary. "requestType" is the http
@@ -177,10 +252,11 @@ class Application(object) :
 		headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
 		self.connection.request( requestType, urllib.quote(resource), urllib.urlencode(parameters), headers )
 		response = self.connection.getresponse()
-		# I need to "read" the response message before the connection gets closed.
-		# I'll store the message in a custom member of the response class that gets
-		# returned to the user.
-		response.fullMessage=response.read()
+		if storeMessage:
+			# I need to "read" the response message before the connection gets closed.
+			# I'll store the message in a custom member of the response class that gets
+			# returned to the user.
+			response.fullMessage=response.read()
 		self.connection.close()
 		return response
 
@@ -194,9 +270,9 @@ class Program(object) :
 	"""
 	def __init__( self, xdaqConfigFilename ) :
 		self.xdaqConfigFilename = xdaqConfigFilename
-		self.reloadXDAQConfig()
+		self._loadXDAQConfig()
 
-	def reloadXDAQConfig( self ) :
+	def _loadXDAQConfig( self ) :
 		self.contexts = []
 		tree=ElementTree.parse( self.xdaqConfigFilename )
 		for node in tree.getroot().getchildren() :
@@ -207,6 +283,10 @@ class Program(object) :
 				# Some of these nodes might not be Contexts, so don't print any errors for those
 				if( str(error)!="Not a Context node" ) :
 					print "Unable to create context for node",str(node),"because",str(error)
+
+	def reloadXDAQConfig( self ) :
+		del self.contexts
+		self._loadXDAQConfig()
 
 	def startAllProcesses( self ) :
 		for context in self.contexts:
@@ -220,6 +300,9 @@ class Program(object) :
 		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
 		for context in self.contexts:
 			context.waitUntilProcessStarted( timeout-(time.time()-startTime) )
+		# Add an arbitrary wait time because I've had cases where the process appears to be
+		# running but the applications don't respond quite yet.
+		time.sleep(2)
 
 	def waitUntilAllProcessesKilled( self, timeout=10.0 ) :
 		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits

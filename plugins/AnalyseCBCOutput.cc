@@ -47,13 +47,27 @@ cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config
 	I2CValuesFilename_=config.getParameter<std::string>("trimFilename");
 	savedStateFilename_=config.getUntrackedParameter<std::string>("savedStateFilename","");
 
-	if( !savedStateFilename_.empty() ) restoreState( savedStateFilename_ );
+	runsProcessed_=0;
+
+	if( !savedStateFilename_.empty() )
+	{
+		try{ restoreState( savedStateFilename_ ); }
+		catch( std::exception& error ){ std::cerr << "Couldn't restore state because: " << error.what() << std::endl; }
+	}
 
 }
 
 cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()
 {
 	std::cout << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()" << std::endl;
+
+	//
+	// Now that the job has finished, create root histograms from all of the
+	// data that has been collected.
+	//
+	edm::Service<TFileService> pFileService;
+	detectorSCurves_.createHistograms( &pFileService->file() );
+	pFileService->file().Write();
 
 	//
 	// If the constructor is called then job has reached it's natural conclusion.
@@ -74,7 +88,6 @@ void cbcanalyser::AnalyseCBCOutput::fillDescriptions( edm::ConfigurationDescript
 void cbcanalyser::AnalyseCBCOutput::beginJob()
 {
 	std::cout << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
-	++runsProcessed_;
 }
 
 void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm::EventSetup& setup )
@@ -121,7 +134,6 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 
 						const std::vector<bool>& hits=unpacker.hits();
 
-						// For testing I'll just output the results to std::cout
 						for( size_t stripNumber=0; stripNumber<hits.size(); ++stripNumber )
 						{
 							cbcanalyser::SCurve& sCurve=fedChannelSCurves.getStripSCurve(stripNumber);
@@ -145,13 +157,6 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 void cbcanalyser::AnalyseCBCOutput::endJob()
 {
 	std::cout << "cbcanalyser::AnalyseCBCOutput::endJob(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
-
-	//
-	// Now that the job has finished, create root histograms from all of the
-	// data that has been collected.
-	//
-	edm::Service<TFileService> pFileService;
-	detectorSCurves_.createHistograms( &pFileService->file() );
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::EventSetup& setup )
@@ -163,13 +168,14 @@ void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::Ev
 		std::cerr << "readI2CValues() failed because: " << error.what() << std::endl;
 	}
 	eventsProcessed_=0;
+	++runsProcessed_;
 }
 
 void cbcanalyser::AnalyseCBCOutput::endRun( const edm::Run& run, const edm::EventSetup& setup )
 {
 	std::cout << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 
-	if( !savedStateFilename_.empty() ) saveState( savedStateFilename_ );
+	if( !savedStateFilename_.empty() && eventsProcessed_>0 ) saveState( savedStateFilename_ );
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )

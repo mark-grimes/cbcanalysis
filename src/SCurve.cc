@@ -1,7 +1,6 @@
 #include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
 
 #include <cmath>
-#include <iostream>
 #include <stdexcept>
 #include <sstream>
 #include <iomanip>
@@ -40,11 +39,13 @@ const size_t& cbcanalyser::SCurveEntry::eventsOff() const
 
 float cbcanalyser::SCurveEntry::fraction() const
 {
+	if( (eventsOn_+eventsOff_)==0 ) return 0;
 	return static_cast<float>(eventsOn_)/static_cast<float>(eventsOn_+eventsOff_);
 }
 
 float cbcanalyser::SCurveEntry::fractionError() const
 {
+	if( (eventsOn_+eventsOff_)==0 ) return 0;
 	return std::sqrt(eventsOn_)/static_cast<float>(eventsOn_+eventsOff_);
 }
 
@@ -196,6 +197,7 @@ void cbcanalyser::FedChannelSCurves::createHistograms( TDirectory* pParentDirect
 
 		std::unique_ptr<TH1> pNewHistogram=stripNumberSCurvesPair.second.createHistogram( stringConverter.str() );
 		pNewHistogram->SetDirectory( pParentDirectory );
+		pNewHistogram.release(); // When the directory gets set, the directory takes ownership
 	}
 
 }
