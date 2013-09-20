@@ -1,3 +1,4 @@
+<flags ADD_SUBDIR="1"/>
 <use name="EventFilter/SiStripRawToDigi"/>
 <export>
 	<lib name="1"/>
