@@ -12,6 +12,7 @@
 #include "XtalDAQ/OnlineCBCAnalyser/interface/HttpServer.h"
 
 #include <fstream>
+#include <thread>
 #include <boost/asio.hpp>
 #include "httpserver/ConnectionManager.h"
 #include "httpserver/request.hpp"
@@ -50,6 +51,9 @@ namespace cbcanalyser
 
 		/// The handler for all incoming requests.
 		httpserver::RequestHandler request_handler_;
+
+		/// Thread for the run loop
+		std::thread runThread_;
 	};
 }
 
@@ -60,30 +64,47 @@ cbcanalyser::HttpServer::HttpServer()
 
 }
 
+cbcanalyser::HttpServer::~HttpServer()
+{
+
+}
+
 void cbcanalyser::HttpServer::start( const std::string& address, const std::string& port )
 {
-	pImple->do_await_stop();
+	// Make sure the server isn't already running
+	if( !pImple->runThread_.joinable() )
+	{
+		pImple->do_await_stop();
 
-	// Open the acceptor with the option to reuse the address (i.e. SO_REUSEADDR).
-	boost::asio::ip::tcp::resolver resolver(pImple->io_service_);
-	boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve({address, port});
-	pImple->acceptor_.open(endpoint.protocol());
-	pImple->acceptor_.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
-	pImple->acceptor_.bind(endpoint);
-	pImple->acceptor_.listen();
+		// Open the acceptor with the option to reuse the address (i.e. SO_REUSEADDR).
+		boost::asio::ip::tcp::resolver resolver(pImple->io_service_);
+		boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve({address, port});
+		pImple->acceptor_.open(endpoint.protocol());
+		pImple->acceptor_.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
+		pImple->acceptor_.bind(endpoint);
+		pImple->acceptor_.listen();
 
-	pImple->do_accept();
+		pImple->do_accept();
 
-	// The io_service::run() call will block until all asynchronous operations
-	// have finished. While the server is running, there is always at least one
-	// asynchronous operation outstanding: the asynchronous accept call waiting
-	// for new incoming connections.
-	pImple->io_service_.run();
+	//	// The io_service::run() call will block until all asynchronous operations
+	//	// have finished. While the server is running, there is always at least one
+	//	// asynchronous operation outstanding: the asynchronous accept call waiting
+	//	// for new incoming connections.
+	//	pImple->io_service_.run();
+
+		pImple->runThread_=std::thread( [&]{ pImple->io_service_.run(); } );
+	}
 }
 
 void cbcanalyser::HttpServer::stop()
 {
-
+	// Check to see the server is running
+	if( pImple->runThread_.joinable() )
+	{
+		pImple->io_service_.stop();
+		pImple->acceptor_.close();
+		pImple->runThread_.join();
+	}
 }
 
 

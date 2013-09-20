@@ -16,6 +16,7 @@ namespace cbcanalyser
 	{
 	public:
 		HttpServer();
+		~HttpServer();
 		void start( const std::string& address, const std::string& port );
 		void stop();
 	private:

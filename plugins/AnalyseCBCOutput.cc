@@ -47,6 +47,12 @@ cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config
 	I2CValuesFilename_=config.getParameter<std::string>("trimFilename");
 	savedStateFilename_=config.getUntrackedParameter<std::string>("savedStateFilename","");
 
+	std::string hostname=config.getUntrackedParameter<std::string>("commsServerHostname");
+	std::string port=config.getUntrackedParameter<std::string>("commsServerPort");
+
+	std::cout << "cbcanalyser::AnalyseCBCOutput - Starting server on host " << hostname << " and port " << port << std::endl;
+	server_.start( hostname, port );
+
 	runsProcessed_=0;
 
 	if( !savedStateFilename_.empty() )

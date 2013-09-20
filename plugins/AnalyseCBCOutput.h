@@ -5,12 +5,12 @@
 #include <FWCore/Framework/interface/Frameworkfwd.h>
 #include <FWCore/Framework/interface/EDAnalyzer.h>
 #include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
+#include "XtalDAQ/OnlineCBCAnalyser/interface/HttpServer.h"
 
 //
 // Forward declarations
 //
 class TH1;
-
 
 namespace cbcanalyser
 {
@@ -69,6 +69,7 @@ namespace cbcanalyser
 		size_t runsProcessed_;
 
 		class cbcanalyser::SCurveEntry* pSCurveEntryToMonitorForDQM_;
+		cbcanalyser::HttpServer server_;
 	};
 
 } // end of namespace cbcanalyser

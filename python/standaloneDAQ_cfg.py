@@ -27,7 +27,9 @@ process.source = cms.Source("DaqSource",
 #process.load("MarksAnalysers.CBCAnalyser.AnalyseCBCOutput_cfi")
 process.AnalyseCBCOutput = cms.EDAnalyzer("AnalyseCBCOutput",
 	trimFilename = cms.string("/tmp/i2CFileToSendToBoard.txt"),
-	savedStateFilename = cms.untracked.string("/tmp/savedState.log")
+	savedStateFilename = cms.untracked.string("/tmp/savedState.log"),
+	commsServerHostname = cms.untracked.string("127.0.0.1"),
+	commsServerPort = cms.untracked.string("4000")
 )
 process.path1 = cms.Path(process.AnalyseCBCOutput)
 
