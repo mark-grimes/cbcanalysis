@@ -166,7 +166,7 @@ class GlibStreamerApplication( XDAQTools.Application ) :
 			'log':'off',         # Just controls the display on the webpage.
 			'flags':'off',       # Just controls the display on the webpage.
 			'dataflags':'off',   # Just controls the display on the webpage.
-			'counters':'on',    # Just controls the display on the webpage.
+			'counters':'off',    # Just controls the display on the webpage.
 			'hardwareCounter':'off',
 			'simulated':'off',
 			'dataFile':''
@@ -281,24 +281,24 @@ class GlibProgram( XDAQTools.Program ) :
 
 
 		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
-		#self.waitAllMatchingApplicationsForState( "Ready", timeout, "rubuilder::evm::Application" )
-		#self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::evm::Application" )
+		self.waitAllMatchingApplicationsForState( "Ready", timeout, "rubuilder::evm::Application" )
+		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::evm::Application" )
 		
-		#self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-		#self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::ru::Application" )
+		self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
+		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::ru::Application" )
 
-		#self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-		#self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::bu::Application" )
+		self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
+		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::bu::Application" )
 
 		if timeout>0:
 			self.waitAllMatchingApplicationsForState( "Halted", timeout, "TrackerManager" )
 			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "GlibSupervisor" )
-			#self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
-			#self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-			#self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
+			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
+			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
+			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
+#			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
+#			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
+#			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
 			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "evf::FUEventProcessor" )
 			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "evf::FUResourceBroker" )
 			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "StorageManager" )
@@ -323,9 +323,9 @@ class GlibProgram( XDAQTools.Program ) :
 		self.sendAllMatchingApplicationsCommand( "Enable", "evf::FUEventProcessor" )
 		self.sendAllMatchingApplicationsCommand( "Enable", "evf::FUResourceBroker" )
 		self.sendAllMatchingApplicationsCommand( "start", "GlibStreamer" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::ru::Application" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::evm::Application" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::bu::Application" )
+#		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::ru::Application" )
+#		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::evm::Application" )
+#		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::bu::Application" )
 		self.sendAllMatchingApplicationsCommand( "Enable", "StorageManager" )
 
 		if timeout>0:

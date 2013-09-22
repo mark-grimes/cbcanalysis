@@ -4,38 +4,22 @@
 	xmlns:xc="http://xdaq.web.cern.ch/xdaq/xsd/2004/XMLConfiguration-30"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<i2o:protocol xmlns:i2o="http://xdaq.web.cern.ch/xdaq/xsd/2004/I2OConfiguration-30">
-		<!--i2o:target class="pt::atcp::PeerTransportATCP" instance="0" tid="31"/>
-		<i2o:target class="pt::atcp::PeerTransportATCP" instance="1" tid="32"/>
-		<i2o:target class="pt::atcp::PeerTransportATCP" instance="2" tid="33"/>
-		<i2o:target class="pt::atcp::PeerTransportATCP" instance="4" tid="35"/>
-		<i2o:target class="pt::atcp::PeerTransportATCP" instance="5" tid="36"/>
-		<i2o:target class="pt::atcp::PeerTransportATCP" instance="6" tid="37"/>
-		<i2o:target class="rubuilder::bu::Application" instance="0" tid="38"/>
-		<i2o:target class="GlibSupervisor" instance="0" tid="39"/>
-		<i2o:target class="GlibStreamer" instance="0" tid="40"/>
-		<i2o:target class="TrackerManager" instance="0" tid="41"/>
-		<i2o:target class="rubuilder::evm::Application" instance="0" tid="42"/>
-		<i2o:target class="rubuilder::ru::Application" instance="0" tid="43"/>
-		<i2o:target class="StorageManager" instance="0" tid="44"/>
-		<i2o:target class="evf::FUResourceBroker" instance="0" tid="45"/>
-		<i2o:target class="evf::FUEventProcessor" instance="0" tid="46"/-->
 		<i2o:target class="pt::atcp::PeerTransportATCP" instance="0" tid="31"/>
 		<i2o:target class="pt::atcp::PeerTransportATCP" instance="1" tid="32"/>
 		<i2o:target class="pt::atcp::PeerTransportATCP" instance="2" tid="33"/>
 		<!--i2o:target class="pt::atcp::PeerTransportATCP" instance="3" tid="34"/-->
 		<i2o:target class="pt::atcp::PeerTransportATCP" instance="4" tid="35"/>
-		<i2o:target class="pt::atcp::PeerTransportATCP" instance="5" tid="35"/>
-		<i2o:target class="pt::atcp::PeerTransportATCP" instance="6" tid="36"/>
-		<i2o:target class="rubuilder::bu::Application" instance="0" tid="36"/>
-		<i2o:target class="GlibSupervisor" instance="0" tid="37"/>
-		<i2o:target class="GlibStreamer" instance="0" tid="38"/>
-		<i2o:target class="TrackerManager" instance="0" tid="39"/>
-		<i2o:target class="rubuilder::evm::Application" instance="0" tid="40"/>
-		<i2o:target class="rubuilder::ru::Application" instance="0" tid="41"/>
-		<i2o:target class="StorageManager" instance="0" tid="42"/>
-		<i2o:target class="evf::FUResourceBroker" instance="0" tid="43"/>
-		<i2o:target class="evf::FUEventProcessor" instance="0" tid="44"/>
-		<!--i2o:target class="evf::FUEventProcessor" instance="1" tid="45"/-->
+		<i2o:target class="pt::atcp::PeerTransportATCP" instance="5" tid="36"/>
+		<i2o:target class="pt::atcp::PeerTransportATCP" instance="6" tid="37"/>
+		<i2o:target class="rubuilder::bu::Application" instance="0" tid="41"/>
+		<i2o:target class="GlibSupervisor" instance="0" tid="42"/>
+		<i2o:target class="GlibStreamer" instance="0" tid="43"/>
+		<i2o:target class="TrackerManager" instance="0" tid="44"/>
+		<i2o:target class="rubuilder::evm::Application" instance="0" tid="45"/>
+		<i2o:target class="rubuilder::ru::Application" instance="0" tid="46"/>
+		<i2o:target class="StorageManager" instance="0" tid="47"/>
+		<i2o:target class="evf::FUResourceBroker" instance="0" tid="48"/>
+		<i2o:target class="evf::FUEventProcessor" instance="0" tid="49"/>
 	</i2o:protocol>
 
 
@@ -213,7 +197,7 @@
 		<xc:Endpoint hostname="localhost" network="dhcalatcp" port="31810" protocol="atcp" service="i2o"/>
 		<xc:Application class="evf::FUEventProcessor" id="61" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:evf::FUEventProcessor" xsi:type="soapenc:Struct">
-				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CMSSWReleases/GLibTestStand/src/XtalDAQ/OnlineCBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
+				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
 				<hasPrescaleService xsi:type="xsd:boolean">false</hasPrescaleService>
 				<hasModuleWebRegistry xsi:type="xsd:boolean">true</hasModuleWebRegistry>
 				<hasServiceWebRegistry xsi:type="xsd:boolean">true</hasServiceWebRegistry>
@@ -233,7 +217,7 @@
 		</xc:Application>
 		<xc:Module>/opt/xdaq/lib/libptatcp.so</xc:Module>
 		<xc:Module>/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/libEventFilterProcessor.so</xc:Module>
-		<xc:Module>/home/xtaldaq/CMSSWReleases/GLibTestStand/lib/slc5_amd64_gcc462/pluginXtalDAQOnlineCBCAnalyserPlugins.so</xc:Module>
+		<xc:Module>${CMSSW_BASE}/lib/slc5_amd64_gcc462/pluginXtalDAQOnlineCBCAnalyserPlugins.so</xc:Module>
 	</xc:Context>
 
 </xc:Partition>

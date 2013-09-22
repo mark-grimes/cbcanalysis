@@ -40,7 +40,7 @@ namespace // Use the unnamed namespace for tools only used in this file
 }
 
 cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config )
-	: stripThresholdOffsets_(128)
+	: stripThresholdOffsets_(128), pSCurveEntryToMonitorForDQM_(nullptr)
 {
 	std::cout << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
 
@@ -90,10 +90,38 @@ void cbcanalyser::AnalyseCBCOutput::beginJob()
 	std::cout << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
 }
 
+void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
+{
+	// Loop over all the FEDs
+	for( const auto& fedIndex : detectorSCurves_.getValidFedIndices() )
+	{
+		// Loop over all the FED channels
+		auto& fedSCurves=detectorSCurves_.getFedSCurves(fedIndex);
+		for( const auto& channelIndex : fedSCurves.getValidChannelIndices() )
+		{
+			// Loop over all the strips of the CBC chip connected on this channel
+			auto& channelSCurves=fedSCurves.getFedChannelSCurves(channelIndex);
+			output << "FED " << fedIndex << ", FED channel " << channelIndex << " -" << "\n";
+			for( const auto& stripIndex : channelSCurves.getValidStripIndices() )
+			{
+				auto& sCurve=channelSCurves.getStripSCurve(stripIndex);
+				// I don't want to dump every single point along the x-axis, just enough
+				// to see what's going on. I'll dump information for the point on the x-axis
+				// (i.e. threshold or whatever) that is currently being modified.
+				const auto& sCurveEntry=sCurve.getEntry( stripThresholdOffsets_[stripIndex] );
+				output << std::setw(3) << std::right << sCurveEntry.eventsOn() << ":" << std::setw(3) << std::left << sCurveEntry.eventsOff() << " ";
+				if( stripIndex%16 == 15 ) output << "\n";
+			} // end of loop over strips
+		} // end of loop over FED channels
+	} // end of loop over FEDs
+}
+
 void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm::EventSetup& setup )
 {
 	++eventsProcessed_;
 	std::cout << "cbcanalyser::AnalyseCBCOutput::analyze() event " << eventsProcessed_ << std::endl;
+	//if( pSCurveEntryToMonitorForDQM_==nullptr ) std::cout << std::endl;
+	//else std::cout << " Strip ratio=" << pSCurveEntryToMonitorForDQM_->fraction() << "(" << pSCurveEntryToMonitorForDQM_->eventsOn() << ":" << pSCurveEntryToMonitorForDQM_->eventsOff() << ")" << std::endl;
 
 	edm::Handle<FEDRawDataCollection> hRawData;
 	event.getByLabel( "rawDataCollector", hRawData );
@@ -142,7 +170,9 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 							if( hits[stripNumber]==true ) ++sCurveEntry.eventsOn();
 							else ++sCurveEntry.eventsOff();
 						}
-					}
+
+						if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&fedChannelSCurves.getStripSCurve(0).getEntry( stripThresholdOffsets_[0] );
+					} // end of loop over FED channels
 				}
 			}
 			catch( std::exception& error )
@@ -150,8 +180,10 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 				std::cout << "Exception: "<< error.what() << std::endl;
 			}
 
-		}
-	}
+		} // end of "if FED has data"
+	} // end of loop over FEDs
+
+	dumpSCurveToStream( std::cout );
 }
 
 void cbcanalyser::AnalyseCBCOutput::endJob()

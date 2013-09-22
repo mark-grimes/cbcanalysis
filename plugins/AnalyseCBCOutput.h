@@ -53,6 +53,9 @@ namespace cbcanalyser
 
 		DetectorSCurves detectorSCurves_;
 
+		/** @brief Dumps the s-curves to the output stream for debugging */
+		void dumpSCurveToStream( std::ostream& output );
+
 		/** @brief Reads strip threshold offsets from the filename stored in I2CValuesFilename_ and store them
 		 * in stripThresholdOffsets_.
 		 *
@@ -64,6 +67,8 @@ namespace cbcanalyser
 
 		size_t eventsProcessed_;
 		size_t runsProcessed_;
+
+		class cbcanalyser::SCurveEntry* pSCurveEntryToMonitorForDQM_;
 	};
 
 } // end of namespace cbcanalyser

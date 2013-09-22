@@ -1,4 +1,5 @@
-import FWCore.ParameterSet.python.Config as cms 
+import FWCore.ParameterSet.Config as cms
+
 
 # process declaration
 process = cms.Process("HLT")
@@ -7,7 +8,7 @@ process.TFileService = cms.Service("TFileService",
 	fileName = cms.string("/home/xtaldaq/testHistograms.root")
 )
 
-process.load("FWCore.MessageLogger.python.MessageLogger_cfi") 
+process.load("FWCore.MessageLogger.MessageLogger_cfi") 
 process.MessageLogger = cms.Service("MessageLogger", 
 	destinations = cms.untracked.vstring('cout','log4cplus'), 
 	cout = cms.untracked.PSet(threshold = cms.untracked.string('WARNING')), 

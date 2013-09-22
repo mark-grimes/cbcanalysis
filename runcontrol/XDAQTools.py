@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ElementTree
 import httplib, urllib
-import xdglib
+#import xdglib
 import time
 import os
 
@@ -30,20 +30,18 @@ class ETElementExtension( ElementTree._ElementInterface ) :
 		if len(result)==0 : return None
 		else : return result[0]
 
-def makeMessage( configFilename ) :
-	forcedEnvironmentVariables={'ENV_CMS_TK_FEC_ROOT':'/opt/trackerDAQ'}
-	requiredEnvironmentVariableNames=['ENV_CMS_TK_FEC_ROOT','ENV_CMS_TK_FED9U_ROOT','HODGEPODGE']
-	environmentVariables={}
-	for variableName in requiredEnvironmentVariableNames:
-		try:
-			environmentVariables[variableName]=forcedEnvironmentVariables[variableName]
-		except KeyError:
-			variable=os.getenv(variableName)
-			if variable==None: raise Exception("Environment variable "+variableName+" has not been set and is not available from the current environment")
-			environmentVariables[variableName]=variable
+def sendSoapMessage( host, port, soapBody, className=None, instance=None ):
+	"""
+	Sends a soap message with the body provided to the host and port provided.
+	No checking is provided that the soapBody provided is valid.
+	
+	If a className and instance are provided they are sent in the SOAPAction header. If either one is "None"
+	then the SOAPAction header is "urn:xdaq-application:lid=10". No idea why, but that's what it was in xdglib
 
-
-	msg = """<?xml version="1.0" encoding="UTF-8"?>
+	Author Mark Grimes (mark.grimes@bristol.ac.uk) but heavily copied from a file called xdglib.py
+	Date 16/Sep/2013
+	"""
+	message = """<?xml version="1.0" encoding="UTF-8"?>
 	<SOAP-ENV:Envelope
 	 SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
 	 xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
@@ -52,57 +50,146 @@ def makeMessage( configFilename ) :
 	 xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
 	<SOAP-ENV:Header>
 	</SOAP-ENV:Header>
-	<SOAP-ENV:Body>
-	<xdaq:startXdaqExe execPath="""+'"'+environmentVariables['XDAQ_ROOT']+"""/bin/xdaq.exe" user="xtaldaq" argv="-p '+contextPort+' -l INFO" xmlns:xdaq="urn:xdaq-soap:3.0" >
-	<EnvironmentVariable """
+	<SOAP-ENV:Body>"""
+	message += soapBody
+	message += """</SOAP-ENV:Body>
+	</SOAP-ENV:Envelope>"""
+	
+	if className==None or instance==None:	
+		headers = {"Content-Type":"text/xml", "charset":"utf-8","Content-Description":"SOAP Message", "SOAPAction":"urn:xdaq-application:lid=10"}
+		listeningUrl=host+":9999" # The port that the xdaq daemon listens on
+	else:
+		headers = {"Content-Type":"text/xml", "charset":"utf-8","Content-Description":"SOAP Message", "SOAPAction":"urn:xdaq-application:class="+className+",instance="+str(instance)}
+		listeningUrl=host+":"+str(port)
+
+	connection = httplib.HTTPConnection( listeningUrl )
+	connection.request("POST", urllib.quote("/cgi-bin/query"), ElementTree.tostring( ElementTree.XML(message) ), headers )
+	response = connection.getresponse()
+	if (response.status != 200):
+		connection.close()
+		raise Exception( "Unable to send soap message because: "+str(response.status)+" - "+response.reason )
+	data = response.read()
+	connection.close()
+	return data
+
+def sendSoapStartCommand( host, port, configFilename ):
+	xdglibEnvironmentVariables={
+		"XDAQ_ROOT":"/opt/xdaq",
+		"XDAQ_OS":"linux",
+		"XDAQ_PLATFORM":"x86_64_slc5",
+		"XDAQ_DOCUMENT_ROOT":"/opt/xdaq/htdocs",
+		"XDAQ_ELOG":"SET",
+		"ROOTSYS":"/home/xtaldaq/root/",
+		"LD_LIBRARY_PATH":"/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib",
+		"PYTHONPATH":"/usr/lib64/python2.4:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/cfipython/slc5_amd64_gcc462",
+		"PYTHONHOME":"/usr/lib64/python2.4",
+		"CMSSW_SEARCH_PATH":"/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src/",
+		"ENV_CMS_TK_FEC_ROOT":"/opt/trackerDAQ",
+		"ENV_CMS_TK_FED9U_ROOT":"/opt/trackerDAQ",
+		"ENV_CMS_TK_TTC_ROOT":"/opt/TTCSoftware",
+		"ENV_CMS_TK_LTC_ROOT":"/opt/TTCSoftware",
+		"ENV_CMS_TK_TTCCI_ROOT":"/opt/TTCSoftware",
+		"HOME":"/home/xtaldaq",
+		"ENV_CMS_TK_PARTITION":"XY_10-JUN-2009_2",
+		"ENV_CMS_TK_CAEN_ROOT":"/opt/xdaq",
+		"ENV_CMS_TK_HARDWARE_ROOT":"/opt/trackerDAQ",
+		"ENV_CMS_TK_APVE_ROOT":"/opt/APVe",
+		"ENV_CMS_TK_SBS_ROOT":"/opt/trackerDAQ",
+		"ENV_CMS_TK_HAL_ROOT":"/opt/xdaq",
+		"APVE_ROOT":"/opt/APVe",
+		"ENV_CMS_TK_DIAG_ROOT":"/opt/trackerDAQ",
+		"HOSTNAME":"localhost",
+		"SCRATCH":"/tmp",
+		"ENV_TRACKER_DAQ":"/opt/trackerDAQ",
+		"SEAL_PLUGINS":"/opt/cmsswLocal/module",
+		"CMSSW_BASE":"/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4",
+		"CMSSW_VERSION":"CMSSW_5_3_4",
+		"POOL_OUTMSG_LEVEL":"4",
+		"POOL_STORAGESVC_DB_AGE_LIMIT":"10"}
+	forcedEnvironmentVariables={"XDAQ_ELOG":"SET",
+		"PYTHONHOME":"/usr/lib64/python2.4",
+		#"PYTHONHOME":"/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/python/2.6.4/lib/python2.6",
+		#"PYTHONHOME":"/usr",
+		#"PYTHONPATH":os.getenv("PYTHONPATH")+":/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/python/2.6.4/lib/python2.6",
+		"PYTHONPATH":"/usr/lib64/python2.4:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/cfipython/slc5_amd64_gcc462",
+		"ENV_CMS_TK_PARTITION":"XY_10-JUN-2009_2",
+		"ENV_CMS_TK_HARDWARE_ROOT":"/opt/trackerDAQ",
+		"APVE_ROOT":"/opt/APVe",
+		"SCRATCH":"/tmp",
+		"SEAL_PLUGINS":"/opt/cmsswLocal/module",
+		"POOL_OUTMSG_LEVEL":"4",
+		"POOL_STORAGESVC_DB_AGE_LIMIT":"10",
+		"XDAQ_ROOT":"/opt/xdaq",
+		#"LD_LIBRARY_PATH":"/opt/xdaq/libs:/opt/CBCDAQ/lib"+os.getenv("LD_LIBRARY_PATH"),
+		"LD_LIBRARY_PATH":"/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib",
+		"XDAQ_DOCUMENT_ROOT":"/opt/xdaq/htdocs"}
+	requiredEnvironmentVariableNames=['XDAQ_ROOT',
+		'XDAQ_OS',
+		'XDAQ_PLATFORM',
+		'XDAQ_DOCUMENT_ROOT',
+		'XDAQ_ELOG',
+		'ROOTSYS',
+		'LD_LIBRARY_PATH',
+		'PYTHONHOME',
+		'PYTHONPATH',
+		'CMSSW_SEARCH_PATH',
+		'ENV_CMS_TK_FEC_ROOT',
+		'ENV_CMS_TK_FED9U_ROOT',
+		'ENV_CMS_TK_TTC_ROOT',
+		'ENV_CMS_TK_LTC_ROOT',
+		'ENV_CMS_TK_TTCCI_ROOT',
+		'HOME',
+		'ENV_CMS_TK_PARTITION',
+		'ENV_CMS_TK_CAEN_ROOT',
+		'ENV_CMS_TK_HARDWARE_ROOT',
+		'ENV_CMS_TK_APVE_ROOT',
+		'ENV_CMS_TK_SBS_ROOT',
+		'ENV_CMS_TK_HAL_ROOT',
+		'APVE_ROOT',
+		'ENV_CMS_TK_DIAG_ROOT',
+		'HOSTNAME',
+		'SCRATCH',
+		'ENV_TRACKER_DAQ',
+		'SEAL_PLUGINS',
+		'CMSSW_BASE',
+		'CMSSW_RELEASE_BASE',
+		'CMSSW_VERSION',
+		'POOL_OUTMSG_LEVEL',
+		'POOL_STORAGESVC_DB_AGE_LIMIT']
+	environmentVariables={}
+	for variableName in requiredEnvironmentVariableNames:
+		try:
+			environmentVariables[variableName]=forcedEnvironmentVariables[variableName]
+		except KeyError:
+			variable=os.getenv(variableName)
+			if variable==None: raise Exception("Environment variable "+variableName+" has not been set and is not available from the current environment")
+			environmentVariables[variableName]=variable
+	
+	# Now I have all of the environment variables figured out I can craft the message body
+	soapBody = '<xdaq:startXdaqExe execPath="'+environmentVariables['XDAQ_ROOT']+'/bin/xdaq.exe" user="'+os.getenv("USER")+'" argv="-p '+str(port)+' -l INFO" xmlns:xdaq="urn:xdaq-soap:3.0" >\n'
+	soapBody += '<EnvironmentVariable '
+	
+	environmentVariables=xdglibEnvironmentVariables
+	environmentVariables["LD_LIBRARY_PATH"]="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/lib/slc5_amd64_gcc462:"+environmentVariables["LD_LIBRARY_PATH"]
+	environmentVariables["CMSSW_BASE"]="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4"
+	environmentVariables["CMSSW_RELEASE_BASE"]="/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4"
+	environmentVariables["PYTHONPATH"]="/usr/lib64/python2.4:"+environmentVariables["CMSSW_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/cfipython/slc5_amd64_gcc462"
+	
 	for key in environmentVariables:
-		msg+=key+'="'+environmentVariables[key]+'" '
-#	msg+="""XDAQ_ROOT="/opt/xdaq"
-#	XDAQ_OS="linux"
-#	XDAQ_PLATFORM="x86_64_slc5"
-#	XDAQ_DOCUMENT_ROOT="/opt/xdaq/htdocs"
-#	XDAQ_ELOG="SET"
-#	DIM_DNS_NODE="'+dimnode+'"
-#	ROOTSYS="/home/xtaldaq/root/"
-#	LD_LIBRARY_PATH="/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/CMSSWReleases/GLibTestStand/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib" PYTHONPATH="/usr/lib64/python2.4:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/cfipython/slc5_amd64_gcc462:"
-#	PYTHONHOME="/usr/lib64/python2.4"
-#	CMSSW_SEARCH_PATH="/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src/"
-#	ENV_CMS_TK_FEC_ROOT="/opt/trackerDAQ"
-#	ENV_CMS_TK_FED9U_ROOT="/opt/trackerDAQ"
-#	ENV_CMS_TK_TTC_ROOT="/opt/TTCSoftware"
-#	ENV_CMS_TK_LTC_ROOT="/opt/TTCSoftware"
-#	ENV_CMS_TK_TTCCI_ROOT="/opt/TTCSoftware"
-#	HOME="/home/xtaldaq"
-#	ENV_CMS_TK_PARTITION="XY_10-JUN-2009_2"
-#	ENV_CMS_TK_CAEN_ROOT="/opt/xdaq"
-#	ENV_CMS_TK_HARDWARE_ROOT="/opt/trackerDAQ"
-#	ENV_CMS_TK_APVE_ROOT="/opt/APVe"
-#	ENV_CMS_TK_SBS_ROOT="/opt/trackerDAQ"
-#	ENV_CMS_TK_HAL_ROOT="/opt/xdaq"
-#	APVE_ROOT="/opt/APVe"
-#	ENV_CMS_TK_DIAG_ROOT="/opt/trackerDAQ"
-#	HOSTNAME="localhost"
-#	SCRATCH="/tmp"
-#	ENV_TRACKER_DAQ="/opt/trackerDAQ"
-#	SEAL_PLUGINS="/opt/cmsswLocal/module"
-#	CMSSW_BASE="/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4"
-#	CMSSW_VERSION="CMSSW_5_3_4"
-#	POOL_OUTMSG_LEVEL="4"
-#	POOL_STORAGESVC_DB_AGE_LIMIT="10" >
-	msg+="""</EnvironmentVariable>
+		soapBody+=key+'="'+environmentVariables[key]+'" '
+	soapBody += """/>
 	<ConfigFile>
 	<![CDATA[\n"""
-  
+		
 	configFile=open(configFilename)
 	for line in configFile.readlines():
-		msg = msg + line
-  
-	msg = msg+ """]]>
+		soapBody += line
+	  
+	soapBody += """]]>
 	</ConfigFile>
-	</xdaq:startXdaqExe>
-	</SOAP-ENV:Body>
-	</SOAP-ENV:Envelope>"""
-	return msg
+	</xdaq:startXdaqExe>"""
+	
+	return sendSoapMessage( host, port, soapBody )
 
 		
 class Context(object) :
@@ -151,20 +238,28 @@ class Context(object) :
 
 	def startProcess(self) :
 		self.jobid=-1
-		response=ElementTree.fromstring( xdglib.sendConfigurationStartCommand( "http://"+self.host+":"+self.port, self.configFilename ) )
-		response.__class__=ETElementExtension
-		self.jobid = response.getchildnamed("Body").getchildnamed("jidResponse").getchildnamed("jid").text
+		#response=ElementTree.fromstring( xdglib.sendConfigurationStartCommand( "http://"+self.host+":"+self.port, self.configFilename ) )
+		response=ElementTree.fromstring( sendSoapStartCommand( self.host, self.port, self.configFilename ) )
+		try:
+			response.__class__=ETElementExtension
+			self.jobid = response.getchildnamed("Body").getchildnamed("jidResponse").getchildnamed("jid").text
+		except:
+			raise Exception( "Couldn't start process. Response was: "+ElementTree.tostring(response) )
 		
 	def killProcess(self) :
 		if self.jobid==-1 :
 			return False
-		response=ElementTree.fromstring( xdglib.sendConfigurationKillCommand( "http://"+self.host+":"+self.port, self.jobid ) )
-		response.__class__=ETElementExtension
-		reply=response.getchildnamed("Body").getchildnamed("getStateResponse").getchildnamed("reply").text
-		if reply=='no job killed.' : return False
-		elif reply=='killed by JID' :
-			self.jobid=-1
-			return True
+		#response=ElementTree.fromstring( xdglib.sendConfigurationKillCommand( "http://"+self.host+":"+self.port, self.jobid ) )
+		response=ElementTree.fromstring( sendSoapMessage( self.host, self.port, '<xdaq:killExec user="xtaldaq" jid="'+self.jobid+'" xmlns:xdaq="urn:xdaq-soap:3.0" />' ) )
+		try:
+			response.__class__=ETElementExtension
+			reply=response.getchildnamed("Body").getchildnamed("getStateResponse").getchildnamed("reply").text
+			if reply=='no job killed.' : return False
+			elif reply=='killed by JID' :
+				self.jobid=-1
+				return True
+		except:
+			raise Exception( "Couldn't kill process. Response was: "+ElementTree.tostring(response) )
 
 	def waitUntilProcessStarted( self, timeout=30.0 ) :
 		"""
@@ -217,7 +312,8 @@ class Application(object) :
 		return "<XDAQ Application "+self.host+", "+str(self.port)+", "+self.className+", "+str(self.instance)+">"
 
 	def sendCommand( self, command ) :
-		return xdglib.sendSOAPCommand( self.host, self.port, self.className, self.instance, command )
+		return sendSoapMessage( self.host, self.port, '<xdaq:'+command+' xmlns:xdaq="urn:xdaq-soap:3.0"/>', self.className, self.instance )
+		#return xdglib.sendSOAPCommand( self.host, self.port, self.className, self.instance, command )
 
 	def getState(self) :
 		try :
