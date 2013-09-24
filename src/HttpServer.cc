@@ -86,12 +86,7 @@ void cbcanalyser::HttpServer::start( const std::string& address, const std::stri
 
 		pImple->do_accept();
 
-	//	// The io_service::run() call will block until all asynchronous operations
-	//	// have finished. While the server is running, there is always at least one
-	//	// asynchronous operation outstanding: the asynchronous accept call waiting
-	//	// for new incoming connections.
-	//	pImple->io_service_.run();
-
+		// Start the io_service running in a new thread because it blocks
 		pImple->runThread_=std::thread( [&]{ pImple->io_service_.run(); } );
 	}
 }
