@@ -8,6 +8,7 @@ Date 29/Aug/2013
 import XDAQTools
 import time
 import math
+import os
 
 class I2cRegister :
 	"""
@@ -122,6 +123,9 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 			self.parameters['triggerFreq']=triggerRateCode
 		response=self.httpRequest( "POST", self.saveParametersResource, self.parameters, False )
 		if response.status!= 200 : raise Exception( "GlibSupervisor.configure got the response "+str(response.status)+" - "+response.reason )
+		# I'll initialise with the I2C registers set to what is required to
+		# set the comparator from an external voltage.
+		self.sendI2cFile( os.getenv("CMSSW_BASE")+"/src/XtalDAQ/OnlineCBCAnalyser/runcontrol/I2CValues_comparatorExternalVoltage.txt" )
 
 	def setAllChannelTrims( self, value ) :
 		"""
@@ -139,15 +143,21 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 	def sendI2c( self, registerNames=None ) :
 		temporaryFilename = "/tmp/i2CFileToSendToBoard.txt"
 		self.I2cChip.writeTrimsToFilename( temporaryFilename )
+		self.sendI2cFile( temporaryFilename )
+
+	def sendI2cFile( self, fileName ) :
+		"""
+		Tells the supervisor to set the I2C values that are in the file with the given filename.
+		"""
 		# The supervisor C++ code keeps the filename for a write in memory from the last
 		# read. Not very RESTful, but there you go. So I have to do a read to set the
 		# filename before I perform a write.
-		self.readI2cParameters['i2CFile']=temporaryFilename
+		self.readI2cParameters['i2CFile']=fileName
 		response=self.httpRequest( "POST", self.readI2cResource, self.readI2cParameters, False )
-		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2c during read got the response "+str(response.status)+" - "+response.reason )
+		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during read got the response "+str(response.status)+" - "+response.reason )
 		# Now that the read has set the filename, I can perform the write
 		response=self.httpRequest( "GET", self.writeI2cResource, self.writeI2cParameters, False )
-		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2c during write got the response "+str(response.status)+" - "+response.reason )
+		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during write got the response "+str(response.status)+" - "+response.reason )
 
 class GlibStreamerApplication( XDAQTools.Application ) :
 	def __init__( self, host=None, port=None, className=None, instance=None ) :

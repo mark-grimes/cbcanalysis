@@ -10,7 +10,10 @@
 # Modifications:
 # DGC , 5/Sept/12: If can't find visa will look for MyGpib, which is a wrapper
 #                  around the python wrapper around linux-gpib .....
-# Grimes, 23/Sep/13: Added a verbosity option to limit the amount of output
+# Grimes, 23/Sep/13: Added a verbosity option to limit the amount of output. Also
+#                    added some methods to get some states. Changed some error messages
+#                    to exceptions. Changed soft voltage limit to less than or equal
+#                    instead of just less than.
 # 
 # on Cygwin, before executing Python type:
 # PYTHONPATH=/cygdrive/c/Python25/Lib/site-packages/pyvisa/
@@ -36,7 +39,7 @@ class PowerSupply(object):
             instrumentId = self.powerSupply.ask("*IDN?")
             if self.verbose: print "PowerSupply: talking to:", instrumentId
 
-            self.voltageLimit = 1.25
+            self.voltageLimit = 5
             if self.verbose: print "Soft voltage limit set to " , self.voltageLimit
         else:
             print "Declaring no PSU present. Not setting up"
@@ -74,13 +77,13 @@ class PowerSupply(object):
          output selects which output to vary
          """
          if self.psuPresent == 1:
-             if (voltage<self.voltageLimit):
+             if (voltage<=self.voltageLimit):
                  self.setChannel( output = output )
                  self.powerSupply.write("APPLY " + str(voltage) + " , " + str(current) )
                  state = self.powerSupply.ask("APPLY?" )
-                 print "Power supply reports Output Voltage, Current = " + state
+                 if self.verbose: print "Power supply reports Output Voltage, Current = " + state
              else:
-                 print "Soft-limit set to %s . Refusing to set output voltage to %s" % ( self.voltageLimit , voltage)
+                 raise Exception("Soft-limit set to %s . Refusing to set output voltage to %s" % ( self.voltageLimit , voltage))
          
     def getOutput(self,  output = "OUTP1"):
          """
@@ -90,28 +93,42 @@ class PowerSupply(object):
          self.setChannel( output = output )
 
          state = self.powerSupply.ask("APPLY?" )
-         print "Power supply reports Voltage, current = " + state
+         if self.verbose: print "Power supply reports Voltage, current = " + state
+         # Get the state in number format
+         splitState=state.split('"')[1].split(',')
+         return {"voltage":float(splitState[0]),"current":float(splitState[1])}
 
+    
          
     def getOnOff(self , output = "OUT1" ):
          """ Reads the on/off status of an output"""
          outp = self.powerSupply.ask("OUTP?")
          print "Output State (0/1 = off/on) =  " + outp
 
+    def isOn(self):
+    	""" Returns whether the output is on or off as a boolean """
+    	outp = self.powerSupply.ask("OUTP?")
+    	if outp=="1" or outp=="1\n": return True
+    	elif outp=="0" or outp=="0\n": return False
+    	else: raise Exception('The command "OUTP?" returned "'+outp+'"')
 
     def setOn(self , output = "OUT1" ):
          outp = self.powerSupply.write("OUTP 1")
-         self.getOnOff()
+         if self.verbose: self.getOnOff()
 
 
     def setOff(self, output = "OUT1" ):
          outp = self.powerSupply.write("OUTP 0")
-         self.getOnOff()
+         if self.verbose: self.getOnOff()
 
     def setVoltageLimit(self, voltageLimit = 1.25 ):
         """Sets the max voltage. NB. this is a software limit, not the over voltage protection built into the power supply"""
         self.voltageLimit = voltageLimit
-        print "Set soft voltage limit to " , self.voltageLimit     
+        if self.verbose: print "Set soft voltage limit to " , self.voltageLimit
 
-         
+    def getVoltageLimit(self):
+    	if self.verbose: print "Set soft voltage limit to " , self.voltageLimit
+    	return self.voltageLimit
+
+
 
