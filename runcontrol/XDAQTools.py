@@ -170,9 +170,9 @@ def sendSoapStartCommand( host, port, configFilename ):
 	soapBody += '<EnvironmentVariable '
 	
 	environmentVariables=xdglibEnvironmentVariables
-	environmentVariables["LD_LIBRARY_PATH"]="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/lib/slc5_amd64_gcc462:"+environmentVariables["LD_LIBRARY_PATH"]
-	environmentVariables["CMSSW_BASE"]="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4"
-	environmentVariables["CMSSW_RELEASE_BASE"]="/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4"
+	environmentVariables["CMSSW_BASE"]=os.getenv("CMSSW_BASE")
+	environmentVariables["CMSSW_RELEASE_BASE"]=os.getenv("CMSSW_RELEASE_BASE")
+	environmentVariables["LD_LIBRARY_PATH"]=environmentVariables["CMSSW_BASE"]+"/lib/slc5_amd64_gcc462:"+environmentVariables["LD_LIBRARY_PATH"]
 	environmentVariables["PYTHONPATH"]="/usr/lib64/python2.4:"+environmentVariables["CMSSW_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/cfipython/slc5_amd64_gcc462"
 	
 	for key in environmentVariables:
