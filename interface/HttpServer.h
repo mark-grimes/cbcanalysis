@@ -11,9 +11,10 @@ namespace httpserver
 	 *
 	 * http://www.boost.org/doc/libs/1_54_0/doc/html/boost_asio/examples/cpp11_examples.html
 	 * Modified so that the start call starts the io_service running in a new thread so that
-	 * it doesn't block.
+	 * it doesn't block, and user handlers are supplied as subclasses of an interface which
+	 * is supplied in the constructor.
 	 *
-	 * @author Mark Grimes (mark.grimes@bristol.ac.uk) but functionality from site above.
+	 * @author Mark Grimes (mark.grimes@bristol.ac.uk) but functionality copied from site above.
 	 * @date 22/Sep/2013
 	 */
 	class HttpServer
