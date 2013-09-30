@@ -40,7 +40,7 @@ namespace // Use the unnamed namespace for tools only used in this file
 }
 
 cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config )
-	: stripThresholdOffsets_(128), pSCurveEntryToMonitorForDQM_(nullptr)
+	: stripThresholdOffsets_(128), pSCurveEntryToMonitorForDQM_(nullptr), server_(*this)
 {
 	std::cout << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
 
@@ -98,6 +98,9 @@ void cbcanalyser::AnalyseCBCOutput::beginJob()
 
 void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
 {
+	// Copy to a non-atomic version before the loop
+	float globalThreshold=globalComparatorThreshold_;
+
 	// Loop over all the FEDs
 	for( const auto& fedIndex : detectorSCurves_.getValidFedIndices() )
 	{
@@ -114,7 +117,8 @@ void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
 				// I don't want to dump every single point along the x-axis, just enough
 				// to see what's going on. I'll dump information for the point on the x-axis
 				// (i.e. threshold or whatever) that is currently being modified.
-				const auto& sCurveEntry=sCurve.getEntry( stripThresholdOffsets_[stripIndex] );
+				const auto& sCurveEntry=sCurve.getEntry( globalThreshold );
+
 				output << std::setw(3) << std::right << sCurveEntry.eventsOn() << ":" << std::setw(3) << std::left << sCurveEntry.eventsOff() << " ";
 				if( stripIndex%16 == 15 ) output << "\n";
 			} // end of loop over strips
@@ -131,6 +135,12 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 
 	edm::Handle<FEDRawDataCollection> hRawData;
 	event.getByLabel( "rawDataCollector", hRawData );
+
+	// Since this could change if someone makes a http request, copy it into another
+	// variable so that all data has the same value for this event.
+	// N.B. globalComparatorThreshold_ should be std::atomic<float> but at the moment
+	// that will compile but not link. I think the compiler version is too old.
+	float globalThreshold=globalComparatorThreshold_;
 
 	size_t fedIndex;
 	for( fedIndex=0; fedIndex<sistrip::CMS_FED_ID_MAX; ++fedIndex )
@@ -171,13 +181,13 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 						for( size_t stripNumber=0; stripNumber<hits.size(); ++stripNumber )
 						{
 							cbcanalyser::SCurve& sCurve=fedChannelSCurves.getStripSCurve(stripNumber);
-							cbcanalyser::SCurveEntry& sCurveEntry=sCurve.getEntry( stripThresholdOffsets_[stripNumber] );
+							cbcanalyser::SCurveEntry& sCurveEntry=sCurve.getEntry( globalThreshold );
 
 							if( hits[stripNumber]==true ) ++sCurveEntry.eventsOn();
 							else ++sCurveEntry.eventsOff();
 						}
 
-						if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&fedChannelSCurves.getStripSCurve(0).getEntry( stripThresholdOffsets_[0] );
+						if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&fedChannelSCurves.getStripSCurve(0).getEntry( globalThreshold );
 					} // end of loop over FED channels
 				}
 			}
@@ -224,6 +234,62 @@ void cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock( const edm::LuminosityB
 void cbcanalyser::AnalyseCBCOutput::endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
 	std::cout << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock()" << std::endl;
+}
+
+void cbcanalyser::AnalyseCBCOutput::handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply )
+{
+	std::stringstream outputStream;
+
+	outputStream << "Request was:" << "\n"
+			<< 	"method=" << request.method << "\n"
+			<< 	"uri=" << request.uri << "\n"
+			<< 	"http_version_major=" << request.http_version_major << "\n"
+			<< 	"http_version_minor=" << request.http_version_minor << "\n"
+			<< 	"headers.size()=" << request.headers.size() << "\n";
+	for( const auto& header : request.headers ) outputStream << "\t" << header.name << "=" << header.value << "\n";
+
+	outputStream << "\n" << "globalComparatorThreshold_=" << globalComparatorThreshold_ << "\n";
+
+	// Split off any parameters in the uri
+	std::string resource;
+	std::vector< std::pair<std::string,std::string> > parameters;
+	size_t characterPosition=request.uri.find_first_of("?");
+	resource=request.uri.substr(0,characterPosition);
+	if( characterPosition!=std::string::npos )
+	{
+		std::string parameterString=request.uri.substr(characterPosition+1);
+		// For now I'll just decode as one parameter, and work out logic for others later
+		parameters.resize(1);
+		characterPosition=parameterString.find_first_of("=");
+		parameters[0].first=parameterString.substr(0,characterPosition);
+		parameters[0].second=parameterString.substr(characterPosition+1);
+	}
+
+	outputStream << "Decoded uri as:" << "\n"
+			<< "resource=" << resource << "\n";
+	for( const auto& parameter : parameters ) outputStream << parameter.first << "=" << parameter.second << "\n";
+
+	if( resource=="/changeVar" )
+	{
+		for( const auto& parameter : parameters )
+		{
+			if( parameter.first=="globalComparatorThreshold_" )
+			{
+				std::stringstream stringConverter;
+				stringConverter.str(parameter.second);
+				float variable;
+				stringConverter >> variable;
+				outputStream << "Setting " << parameter.first << " to " << variable << "\n";
+				globalComparatorThreshold_=variable;
+			}
+		}
+	}
+	reply.content=outputStream.str();
+	reply.headers.resize( 2 );
+	reply.headers[0].name="Content-Length";
+	reply.headers[0].value=std::to_string( reply.content.size() );
+	reply.headers[1].name="Content-Type";
+	reply.headers[1].value="text/plain";
 }
 
 void cbcanalyser::AnalyseCBCOutput::readI2CValues()

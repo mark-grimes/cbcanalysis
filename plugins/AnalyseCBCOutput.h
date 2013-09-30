@@ -2,6 +2,7 @@
 #define XtalDAQ_OnlineCBCAnalyser_plugins_AnalyseCBCOutput_h
 
 #include <fstream>
+#include <atomic>
 #include <FWCore/Framework/interface/Frameworkfwd.h>
 #include <FWCore/Framework/interface/EDAnalyzer.h>
 #include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
@@ -19,7 +20,7 @@ namespace cbcanalyser
 	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
 	 * @date 08/May2013
 	 */
-	class AnalyseCBCOutput : public edm::EDAnalyzer
+	class AnalyseCBCOutput : public edm::EDAnalyzer, public httpserver::HttpServer::IRequestHandler
 	{
 	public:
 		explicit AnalyseCBCOutput( const edm::ParameterSet& config );
@@ -35,6 +36,9 @@ namespace cbcanalyser
 		virtual void endRun( const edm::Run& run, const edm::EventSetup& setup );
 		virtual void beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup );
 		virtual void endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup );
+
+		/** @brief The handler that server_ will call when a HTTP request comes in. */
+		virtual void handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply );
 	protected:
 		/** @brief Save the current state to disk so that another AnalyseCBCOutput can be restored to the same state.
 		 *
@@ -64,12 +68,14 @@ namespace cbcanalyser
 		void readI2CValues();
 		std::string I2CValuesFilename_;
 		std::vector<unsigned int> stripThresholdOffsets_;
+		//std::atomic<float> globalComparatorThreshold_; /// @brief Atomic because the handleRequest method can change it from a different thread.
+		float globalComparatorThreshold_; /// @brief Should be std::atomic but it won't link (compiles though). I think the compiler is too old.
 
 		size_t eventsProcessed_;
 		size_t runsProcessed_;
 
 		class cbcanalyser::SCurveEntry* pSCurveEntryToMonitorForDQM_;
-		cbcanalyser::HttpServer server_;
+		httpserver::HttpServer server_;
 	};
 
 } // end of namespace cbcanalyser
