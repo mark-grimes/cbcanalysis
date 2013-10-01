@@ -141,6 +141,11 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 	// N.B. globalComparatorThreshold_ should be std::atomic<float> but at the moment
 	// that will compile but not link. I think the compiler version is too old.
 	float globalThreshold=globalComparatorThreshold_;
+	// The global threshold should be between 0 and 1, so make sure this is the case
+	if( globalThreshold<0 ) globalThreshold=0;
+	else if( globalThreshold>1 ) globalThreshold=1;
+	// Convert this [0,1] to the bin number in the s-curve. Add the 0.5 so that round happens properly.
+	size_t thresholdBin=static_cast<size_t>( globalComparatorThreshold_*cbcanalyser::SCurve::maxiumumEntries()+0.5 );
 
 	size_t fedIndex;
 	for( fedIndex=0; fedIndex<sistrip::CMS_FED_ID_MAX; ++fedIndex )
@@ -181,13 +186,13 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 						for( size_t stripNumber=0; stripNumber<hits.size(); ++stripNumber )
 						{
 							cbcanalyser::SCurve& sCurve=fedChannelSCurves.getStripSCurve(stripNumber);
-							cbcanalyser::SCurveEntry& sCurveEntry=sCurve.getEntry( globalThreshold );
+							cbcanalyser::SCurveEntry& sCurveEntry=sCurve.getEntry( thresholdBin );
 
 							if( hits[stripNumber]==true ) ++sCurveEntry.eventsOn();
 							else ++sCurveEntry.eventsOff();
 						}
 
-						if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&fedChannelSCurves.getStripSCurve(0).getEntry( globalThreshold );
+						if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&fedChannelSCurves.getStripSCurve(0).getEntry( thresholdBin );
 					} // end of loop over FED channels
 				}
 			}
@@ -238,6 +243,12 @@ void cbcanalyser::AnalyseCBCOutput::endLuminosityBlock( const edm::LuminosityBlo
 
 void cbcanalyser::AnalyseCBCOutput::handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply )
 {
+	//
+	// Currently just returns the details of the request for debugging. Also able to set members with
+	// a request to the location "/changeVar" with the member name and new value as parameters. Only
+	// member currently is "globalComparatorThreshold_" which must be set between 0 and 1.
+	//
+
 	std::stringstream outputStream;
 
 	outputStream << "Request was:" << "\n"
@@ -269,27 +280,42 @@ void cbcanalyser::AnalyseCBCOutput::handleRequest( const httpserver::HttpServer:
 			<< "resource=" << resource << "\n";
 	for( const auto& parameter : parameters ) outputStream << parameter.first << "=" << parameter.second << "\n";
 
-	if( resource=="/changeVar" )
+	try
 	{
-		for( const auto& parameter : parameters )
+		if( resource=="/changeVar" )
 		{
-			if( parameter.first=="globalComparatorThreshold_" )
+			for( const auto& parameter : parameters )
 			{
-				std::stringstream stringConverter;
-				stringConverter.str(parameter.second);
-				float variable;
-				stringConverter >> variable;
-				outputStream << "Setting " << parameter.first << " to " << variable << "\n";
-				globalComparatorThreshold_=variable;
+				if( parameter.first=="globalComparatorThreshold_" )
+				{
+					std::stringstream stringConverter;
+					stringConverter.str(parameter.second);
+					float variable;
+					stringConverter >> variable;
+					if( variable<0 || variable>1 ) throw std::runtime_error( "globalComparatorThreshold_ must be set between 0 and 1 inclusive" );
+					outputStream << "Setting " << parameter.first << " to " << variable << "\n";
+					globalComparatorThreshold_=variable;
+				}
 			}
 		}
+		reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+		reply.content=outputStream.str();
+		reply.headers.resize( 2 );
+		reply.headers[0].name="Content-Length";
+		reply.headers[0].value=std::to_string( reply.content.size() );
+		reply.headers[1].name="Content-Type";
+		reply.headers[1].value="text/plain";
+	} // end of try block
+	catch( std::exception& error )
+	{
+		reply.status=httpserver::HttpServer::Reply::StatusType::bad_request;
+		reply.content=std::string("Exception encountered: ")+error.what();
+		reply.headers.resize( 2 );
+		reply.headers[0].name="Content-Length";
+		reply.headers[0].value=std::to_string( reply.content.size() );
+		reply.headers[1].name="Content-Type";
+		reply.headers[1].value="text/plain";
 	}
-	reply.content=outputStream.str();
-	reply.headers.resize( 2 );
-	reply.headers[0].name="Content-Length";
-	reply.headers[0].value=std::to_string( reply.content.size() );
-	reply.headers[1].name="Content-Type";
-	reply.headers[1].value="text/plain";
 }
 
 void cbcanalyser::AnalyseCBCOutput::readI2CValues()
