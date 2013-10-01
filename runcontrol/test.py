@@ -1,7 +1,7 @@
 import GlibProgram
 import time
 import pythonlib.PowerSupply as PowerSupply
-
+import httplib, urllib
 
 # Create an instance of the Glib control program and tell it the XDAQ
 # configuration file to use.
@@ -26,7 +26,8 @@ voltages=[ voltageStep*5.0/(numberOfMeasurements-1.0) for voltageStep in range(0
 # Loop over all of the specified voltages for the external power supply
 for index in range(0,len(voltages)):
 	supply.setOutput( voltage=voltages[index] )
-	print "External voltage for comparator has been set to "+str(supply.getOutput()['voltage'])
+	currentVoltage=supply.getOutput()['voltage']
+	print "External voltage for comparator has been set to "+str(currentVoltage)
 	
 	# Currently can't get XDAQ to play nicely so have to destroy the processes and
 	# recreate them at the start of each run. The CMSSW modules have been written
@@ -36,6 +37,17 @@ for index in range(0,len(voltages)):
 	program.waitUntilAllProcessesStarted(60) # wait 60 seconds or until all processes have started
 	print "Initialising"
 	program.initialise()
+	
+	# THIS BIT UNTESTED
+	# Once the xdaq applications have been initialised with the line above, an instance of the
+	# C++ class AnalyseCBCOutput should have been constructed. It should then be listening on
+	# port 4000 (set in the python config). Tell it what the comparator threshold is. It expects
+	# this in the range 0 (for lowest possible) to 1 (highest possible) inclusive.
+	# This is all in the C++ code for AnalyseCBCOutput::handleRequest().
+	connection = httplib.HTTPConnection( "127.0.0.1:4000" )
+	connection.request("GET", "/changeVar?globalComparatorThreshold_="+str( currentVoltage/5.0 ) )
+	connection.close()
+ 
 
 	print "Configuring for "+str(events)+" events at "+str(rate)+"Hz"
 	program.configure( triggerRate=rate, numberOfEvents=events )
