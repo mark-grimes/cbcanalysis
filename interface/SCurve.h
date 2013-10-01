@@ -70,6 +70,9 @@ namespace cbcanalyser
 
 		void dumpToStream( std::ostream& outputStream ) const;
 		void restoreFromStream( std::istream& inputStream );
+
+		/// @brief Returns the number of entries possible. I.e. any call to getEntry should be in the range 0 to this value-1
+		static size_t maxiumumEntries();
 	protected:
 		std::vector<SCurveEntry> entries_;
 	};

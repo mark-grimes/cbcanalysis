@@ -85,7 +85,7 @@ void cbcanalyser::SCurveEntry::restoreFromStream( std::istream& inputStream )
 //----------------------------------------------------------------------------------------------
 
 cbcanalyser::SCurve::SCurve()
-	: entries_(256)
+	: entries_( maxiumumEntries() )
 {
 }
 
@@ -168,6 +168,11 @@ void cbcanalyser::SCurve::restoreFromStream( std::istream& inputStream )
 	// If everything went smoothly and I get to this point, I can overwrite the contents
 	// with what was read from disk.
 	(*this)=temporaryInstance;
+}
+
+size_t cbcanalyser::SCurve::maxiumumEntries()
+{
+	return 256;
 }
 
 //----------------------------------------------------------------------------------------------
