@@ -24,6 +24,11 @@ namespace cbcanalyser
 	{
 	public:
 		explicit AnalyseCBCOutput( const edm::ParameterSet& config );
+		AnalyseCBCOutput( const cbcanalyser::AnalyseCBCOutput& otherAnalyser ) = delete;
+		AnalyseCBCOutput( cbcanalyser::AnalyseCBCOutput&& otherAnalyser ) = delete;
+		AnalyseCBCOutput& operator=( const cbcanalyser::AnalyseCBCOutput& otherAnalyser ) = delete;
+		AnalyseCBCOutput& operator=( cbcanalyser::AnalyseCBCOutput&& otherAnalyser ) = delete;
+
 		~AnalyseCBCOutput();
 
 		static void fillDescriptions( edm::ConfigurationDescriptions& descriptions );

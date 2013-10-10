@@ -3,6 +3,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <sstream>
+#include <iostream>
 #include <iomanip>
 #include <TH1F.h>
 #include <TDirectory.h>
@@ -84,8 +85,8 @@ void cbcanalyser::SCurveEntry::restoreFromStream( std::istream& inputStream )
 //---------------------------- cbcanalyser::SCurve definitions ---------------------------------
 //----------------------------------------------------------------------------------------------
 
-cbcanalyser::SCurve::SCurve()
-	: entries_( maxiumumEntries() )
+cbcanalyser::SCurve::SCurve( size_t numberOfEntries )
+	: entries_( numberOfEntries )
 {
 }
 
@@ -123,7 +124,10 @@ size_t cbcanalyser::SCurve::size() const
 
 std::unique_ptr<TH1> cbcanalyser::SCurve::createHistogram( const std::string& name ) const
 {
-	std::unique_ptr<TH1> pNewHistogram( new TH1F( name.c_str(), name.c_str(), entries_.size(), -0.5, entries_.size()-0.5 ) );
+	// Work out what bin width I need for the given number of entries so that the range
+	// runs from 0 to 1.
+	float binWidth=1.0/static_cast<float>(entries_.size());
+	std::unique_ptr<TH1> pNewHistogram( new TH1F( name.c_str(), name.c_str(), entries_.size(), -binWidth, 1+binWidth ) );
 	pNewHistogram->SetDirectory(nullptr);
 
 	for( size_t index=0; index<entries_.size(); ++index )
@@ -172,7 +176,7 @@ void cbcanalyser::SCurve::restoreFromStream( std::istream& inputStream )
 
 size_t cbcanalyser::SCurve::maxiumumEntries()
 {
-	return 256;
+	return entries_.size();
 }
 
 //----------------------------------------------------------------------------------------------
