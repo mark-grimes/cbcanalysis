@@ -1,3 +1,13 @@
+// All of this code was heavily copied from the boost asio examples so I'll include
+// the licence from that.
+//
+//
+// Copyright (c) 2003-2013 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #ifndef XtalDAQ_OnlineCBCAnalyser_interface_HttpServer_h
 #define XtalDAQ_OnlineCBCAnalyser_interface_HttpServer_h
 
@@ -28,7 +38,11 @@ namespace httpserver
 			std::string value;
 		};
 
-		/** @brief The structure that your handler needs to feel to indicate the response.
+		/** @brief The structure that your handler needs to fill to indicate the response.
+		 *
+		 * When the handleRequest() method (which you will have implemented) is called, it is
+		 * passed a reference to one of these structures. You need to fill it with the data
+		 * you want to respond with and return from the function.
 		 */
 		struct Reply
 		{
@@ -73,7 +87,7 @@ namespace httpserver
 		/** @brief The interface that needs to be subclassed and passed to the HttpServer constructor.
 		 *
 		 * This is the interface that you need to subclass and then pass an instance of to the
-		 * HttpServer constructor so that it knows how to handel the HTTP requests.
+		 * HttpServer constructor so that it knows how to handle the HTTP requests.
 		 */
 		class IRequestHandler
 		{
@@ -85,9 +99,14 @@ namespace httpserver
 	public:
 		HttpServer( IRequestHandler& requestHandler );
 		~HttpServer();
+
+		/// @brief Starts the server running at the given address and port. Harmless if called when the server is already running.
 		void start( const std::string& address, const std::string& port );
+
+		/// @brief Stops the server. Harmless to call if the server has already been stopped.
 		void stop();
 	private:
+		/// @brief Private members hidden behind a pimple, aka compiler firewall.
 		std::unique_ptr<class HttpServerPrivateMembers> pImple;
 	};
 

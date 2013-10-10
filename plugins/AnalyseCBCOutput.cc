@@ -42,7 +42,9 @@ namespace // Use the unnamed namespace for tools only used in this file
 cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config )
 	: stripThresholdOffsets_(128), pSCurveEntryToMonitorForDQM_(nullptr), server_(*this)
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
+	debug_=config.getUntrackedParameter<bool>("debug",false);
+
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput()" << std::endl;
 
 	I2CValuesFilename_=config.getParameter<std::string>("trimFilename");
 	savedStateFilename_=config.getUntrackedParameter<std::string>("savedStateFilename","");
@@ -50,7 +52,7 @@ cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config
 	std::string hostname=config.getUntrackedParameter<std::string>("commsServerHostname");
 	std::string port=config.getUntrackedParameter<std::string>("commsServerPort");
 
-	std::cout << "cbcanalyser::AnalyseCBCOutput - Starting server on host " << hostname << " and port " << port << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput - Starting server on host " << hostname << " and port " << port << std::endl;
 	server_.start( hostname, port );
 
 	runsProcessed_=0;
@@ -65,7 +67,7 @@ cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config
 
 cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 
 	// For some reason I can't fathom, the last run is never included. I'll try and load the state
 	// back from disk.
@@ -102,7 +104,7 @@ void cbcanalyser::AnalyseCBCOutput::fillDescriptions( edm::ConfigurationDescript
 
 void cbcanalyser::AnalyseCBCOutput::beginJob()
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::beginJob()" << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
@@ -136,7 +138,7 @@ void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
 				size_t thresholdBin=static_cast<size_t>( globalThreshold*sCurve.maxiumumEntries()-0.5 );
 				const auto& sCurveEntry=sCurve.getEntry( thresholdBin );
 
-				output << std::setw(3) << std::right << sCurveEntry.eventsOn() << ":" << std::setw(3) << std::left << sCurveEntry.eventsOff() << "(" << std::setw(3) << thresholdBin << ") ";
+				output << std::setw(3) << std::right << sCurveEntry.eventsOn() << ":" << std::setw(3) << std::left << sCurveEntry.eventsOff() << " ";
 				if( stripIndex%16 == 15 ) output << "\n";
 			} // end of loop over strips
 		} // end of loop over FED channels
@@ -146,7 +148,7 @@ void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
 void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm::EventSetup& setup )
 {
 	++eventsProcessed_;
-	std::cout << "cbcanalyser::AnalyseCBCOutput::analyze() event " << eventsProcessed_ << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::analyze() event " << eventsProcessed_ << std::endl;
 	//if( pSCurveEntryToMonitorForDQM_==nullptr ) std::cout << std::endl;
 	//else std::cout << " Strip ratio=" << pSCurveEntryToMonitorForDQM_->fraction() << "(" << pSCurveEntryToMonitorForDQM_->eventsOn() << ":" << pSCurveEntryToMonitorForDQM_->eventsOff() << ")" << std::endl;
 
@@ -224,17 +226,17 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 		} // end of "if FED has data"
 	} // end of loop over FEDs
 
-	dumpSCurveToStream( std::cout );
+	if( debug_ ) dumpSCurveToStream( std::cout );
 }
 
 void cbcanalyser::AnalyseCBCOutput::endJob()
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::endJob(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::endJob(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::EventSetup& setup )
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::beginRun()" << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::beginRun()" << std::endl;
 	try { readI2CValues(); }
 	catch( std::exception& error )
 	{
@@ -246,19 +248,19 @@ void cbcanalyser::AnalyseCBCOutput::beginRun( const edm::Run& run, const edm::Ev
 
 void cbcanalyser::AnalyseCBCOutput::endRun( const edm::Run& run, const edm::EventSetup& setup )
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::endRun(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 
 	if( !savedStateFilename_.empty() && eventsProcessed_>0 ) saveState( savedStateFilename_ );
 }
 
 void cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+	if( debug_ ) std::cout << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply )

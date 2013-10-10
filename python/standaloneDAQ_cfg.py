@@ -29,7 +29,8 @@ process.AnalyseCBCOutput = cms.EDAnalyzer("AnalyseCBCOutput",
 	trimFilename = cms.string("/tmp/i2CFileToSendToBoard.txt"),
 	savedStateFilename = cms.untracked.string("/tmp/savedState.log"),
 	commsServerHostname = cms.untracked.string("127.0.0.1"),
-	commsServerPort = cms.untracked.string("4000")
+	commsServerPort = cms.untracked.string("4000"),
+	debug = cms.untracked.bool(False)
 )
 
 process.DQM = cms.EDAnalyzer("OccupancyDQM",

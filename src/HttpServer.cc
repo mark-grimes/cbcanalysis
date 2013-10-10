@@ -128,6 +128,8 @@ namespace // Use the unnamed namespace for things only used in this file
 	public:
 		ConnectionManager( const ConnectionManager& )=delete;
 		ConnectionManager& operator=( const ConnectionManager& )=delete;
+		ConnectionManager( ConnectionManager&& )=delete;
+		ConnectionManager& operator=( ConnectionManager&& )=delete;
 
 		/// Construct a connection manager.
 		ConnectionManager();
@@ -222,6 +224,8 @@ namespace // Use the unnamed namespace for things only used in this file
 	public:
 		Connection( const Connection& )=delete;
 		Connection& operator=( const Connection& )=delete;
+		Connection( Connection&& )=delete;
+		Connection& operator=( Connection&& )=delete;
 
 		/// Construct a connection with the given socket.
 		explicit Connection( boost::asio::ip::tcp::socket socket, ::ConnectionManager& manager, httpserver::HttpServer::IRequestHandler& handler );

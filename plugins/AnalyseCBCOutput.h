@@ -81,6 +81,7 @@ namespace cbcanalyser
 
 		class cbcanalyser::SCurveEntry* pSCurveEntryToMonitorForDQM_;
 		httpserver::HttpServer server_;
+		bool debug_; ///< @brief Whether or not to print lots of debug messages.
 	};
 
 } // end of namespace cbcanalyser

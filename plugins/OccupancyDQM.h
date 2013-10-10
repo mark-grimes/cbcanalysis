@@ -2,6 +2,7 @@
 #define XtalDAQ_OnlineCBCAnalyser_plugins_OccupancyDQM_h
 
 #include <mutex>
+#include <atomic>
 #include <FWCore/Framework/interface/Frameworkfwd.h>
 #include <FWCore/Framework/interface/EDAnalyzer.h>
 #include "XtalDAQ/OnlineCBCAnalyser/interface/HttpServer.h"
@@ -13,7 +14,7 @@ namespace cbcanalyser
 	 * on a webpage.
 	 *
 	 * The hostname and port to try and run the server on is given in the config ParameterSet, as well
-	 * as the number of events to calculate the occupancy.
+	 * as the number of events to calculate the occupancy for.
 	 *
 	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
 	 * @date 09/Oct/2013
@@ -24,18 +25,14 @@ namespace cbcanalyser
 		explicit OccupancyDQM( const edm::ParameterSet& config );
 		~OccupancyDQM();
 
-		//static void fillDescriptions( edm::ConfigurationDescriptions& descriptions );
+		OccupancyDQM( const cbcanalyser::OccupancyDQM& otherAnalyser ) = delete;
+		OccupancyDQM( cbcanalyser::OccupancyDQM&& otherAnalyser ) = delete;
+		OccupancyDQM& operator=( const cbcanalyser::OccupancyDQM& otherAnalyser ) = delete;
+		OccupancyDQM& operator=( cbcanalyser::OccupancyDQM&& otherAnalyser ) = delete;
 	private:
-		//virtual void beginJob();
 		virtual void analyze( const edm::Event& event, const edm::EventSetup& setup );
-		//virtual void endJob();
 
-		//virtual void beginRun( const edm::Run& run, const edm::EventSetup& setup );
-		//virtual void endRun( const edm::Run& run, const edm::EventSetup& setup );
-		//virtual void beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup );
-		//virtual void endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup );
-
-		/** @brief The handler that server_ will call when a HTTP request comes in. */
+		/// @brief The handler that server_ will call when a HTTP request comes in. Required by the IRequestHandler interface.
 		virtual void handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply );
 	protected:
 		httpserver::HttpServer server_;
@@ -44,6 +41,9 @@ namespace cbcanalyser
 		// I've got a few utility classes that are only visible in the .cc file, so
 		// I need to use a pImple.
 		std::unique_ptr<class OccupancyDQMPrivateMembers> pImple;
+		std::atomic<size_t> numberOfEvents_;
+		std::string hostname_;
+		std::string port_;
 	};
 
 } // end of namespace cbcanalyser

@@ -101,15 +101,22 @@ namespace cbcanalyser
 cbcanalyser::OccupancyDQM::OccupancyDQM( const edm::ParameterSet& config )
 	: server_(*this), pImple( new OccupancyDQMPrivateMembers )
 {
-	std::string hostname=config.getUntrackedParameter<std::string>("commsServerHostname");
-	std::string port=config.getUntrackedParameter<std::string>("commsServerPort");
-	server_.start( hostname, port );
+	// For some reason I can't for the life of me understand, the server has to be started in
+	// the analyze() method. If not the server and analyze() appear to have two separate copies
+	// of the OccupancyDQM members, i.e. a change in one does not show up in the other. It's
+	// almost as if XDAQ (or CMSSW) constructs this class and then takes a copy, but I've deleted
+	// the copy/move constructors etcetera. Weird.
+	// I've now moved hostname and port into members so that they're accessible from analyze().
+//	std::string hostname=config.getUntrackedParameter<std::string>("commsServerHostname");
+//	std::string port=config.getUntrackedParameter<std::string>("commsServerPort");
+//	server_.start( hostname, port );
+	hostname_=config.getUntrackedParameter<std::string>("commsServerHostname");
+	port_=config.getUntrackedParameter<std::string>("commsServerPort");
 
-	size_t numberOfEvents=config.getParameter<unsigned int>("eventsToRecord");
-	CBCChipRollingOccupancy::setDefaultEventsToRecord( numberOfEvents );
+	size_t eventsToRecord=config.getParameter<unsigned int>("eventsToRecord");
+	CBCChipRollingOccupancy::setDefaultEventsToRecord( eventsToRecord );
 
-	// Make a dummy entry while I debug the web page formatting.
-	pImple->allRollingOccupancies_[13][3];
+	numberOfEvents_=0;
 }
 
 cbcanalyser::OccupancyDQM::~OccupancyDQM()
@@ -119,6 +126,13 @@ cbcanalyser::OccupancyDQM::~OccupancyDQM()
 
 void cbcanalyser::OccupancyDQM::analyze( const edm::Event& event, const edm::EventSetup& setup )
 {
+	// See the note in the constructor about why the server has to be started from here. The
+	// call checks to see if the server is already running, in which case it does nothing. So
+	// it's harmless to call multiple times.
+	server_.start( hostname_, port_ );
+
+	++numberOfEvents_;
+
 	edm::Handle<FEDRawDataCollection> hRawData;
 	event.getByLabel( "rawDataCollector", hRawData );
 
@@ -128,6 +142,7 @@ void cbcanalyser::OccupancyDQM::analyze( const edm::Event& event, const edm::Eve
 	// invalid memory access.
 	// Use a sentry class to lock it in an exception safe way.
 	MutexLockSentry mutexLock( serverMutex_ );
+
 
 	for( size_t fedIndex=0; fedIndex<sistrip::CMS_FED_ID_MAX; ++fedIndex )
 	{
@@ -161,7 +176,7 @@ void cbcanalyser::OccupancyDQM::analyze( const edm::Event& event, const edm::Eve
 			}
 			catch( std::exception& error )
 			{
-				std::cout << "Exception: "<< error.what() << std::endl;
+				std::cerr << "Exception: "<< error.what() << std::endl;
 			}
 
 		} // end of "if FED has data"
@@ -176,14 +191,17 @@ void cbcanalyser::OccupancyDQM::handleRequest( const httpserver::HttpServer::Req
 	// okay to have something rough-n-ready for now.
 
 
-	std::stringstream responseStream;
+	std::stringstream responseStream; // This will contain the data to send back in the reply
 	responseStream << "<html>"
 			<< "<body>"
-			<< "<h1>CBC occupancies</h1>";
+			<< "<h1>CBC occupancies</h1><br>"
+			<< "Strips run left to right, top to bottom. So strip 0 is top left; strip 15 top right; 16 second row far left etcetera."
+			<< "<p>Total number of events=" << numberOfEvents_ << "</p>";
+	// numberOfEvents_ is atomic so the above line should be fine without a mutex.
 
 	// Use a sentry class to lock the thread in an exception safe way, in case something
 	// changes while I'm traversing the map.
-	MutexLockSentry mutexLock( serverMutex_ );
+	::MutexLockSentry mutexLock( serverMutex_ );
 
 	// Loop over the information for the FEDs
 	for( const auto& fedNumberMapPair : pImple->allRollingOccupancies_ )
@@ -200,19 +218,25 @@ void cbcanalyser::OccupancyDQM::handleRequest( const httpserver::HttpServer::Req
 			{
 				const RollingOccupancy& stripOccupancy=chipOccupancy.stripOccupancy(stripIndex);
 				float occupancy=stripOccupancy.occupancy();
-				//std::cout << std::hex << (1-occupancy)*255 << std::endl;
-				std::cout << std::hex << 11 << " " << std::hex << 255 << std::endl;
 
 				if( stripIndex%16 == 0 ) responseStream << "<tr>";
 				// Make the cell colour a shade of green according to the occupancy, and put the contents as
 				// the number of events on, events off, and percentage of events on.
-				responseStream << "<td align=\"center\" bgcolor=\"#00" << std::hex << static_cast<int>(occupancy*255) << std::dec << "00\">"
+				// To make the cell a shade of green, set the green RGB value to always max, and the other two
+				// to max when occupancy is zero (=white) or zero when the occupancy is full (=green).
+				responseStream << "<td align=\"center\" bgcolor=\"#"
+						<< std::hex << static_cast<int>((1-occupancy)*255)  // The red RGB component of the cell background
+						<< "ff"  // The green RGB component of the cell background. Always fully green.
+						<< static_cast<int>((1-occupancy)*255)  // The blue RGB component of the cell background
+						<< std::dec << "\">"
 						<< stripOccupancy.eventsOn() << ":" << stripOccupancy.eventsOff() << "<br>"
-						<< static_cast<int>(occupancy*100) << "&#37</td>";
+						<< static_cast<int>(occupancy*100+0.5) << "&#37</td>"; // Multiply the occupancy by 100 to get a percentage. The +0.5 makes it round correctly.
 				if( stripIndex%16 == 15 ) responseStream << "</tr>";
 
 			} // end of loop over CBC strips
+
 			responseStream << "</table>";
+
 		} // end of loop over FED channels
 	} // end of loop over FEDs
 
@@ -282,7 +306,6 @@ namespace
 
 	void CBCChipRollingOccupancy::setDefaultEventsToRecord( size_t defaultEventsToRecord )
 	{
-		std::cout << __FILE__ << " - " << __LINE__ << std::endl;
 		defaultEventsToRecord_=defaultEventsToRecord;
 	}
 
