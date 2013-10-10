@@ -31,7 +31,17 @@ process.AnalyseCBCOutput = cms.EDAnalyzer("AnalyseCBCOutput",
 	commsServerHostname = cms.untracked.string("127.0.0.1"),
 	commsServerPort = cms.untracked.string("4000")
 )
-process.path1 = cms.Path(process.AnalyseCBCOutput)
+
+process.DQM = cms.EDAnalyzer("OccupancyDQM",
+	eventsToRecord = cms.uint32(100),
+	commsServerHostname = cms.untracked.string("127.0.0.1"),
+	commsServerPort = cms.untracked.string("4001")
+)
+
+process.analysisPath = cms.Path(
+		process.DQM+
+		process.AnalyseCBCOutput
+	)
 
 
 process.consumer = cms.OutputModule("ShmStreamConsumer",
