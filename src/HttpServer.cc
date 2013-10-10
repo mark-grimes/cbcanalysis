@@ -321,7 +321,7 @@ httpserver::HttpServer::HttpServer( IRequestHandler& requestHandler )
 
 httpserver::HttpServer::~HttpServer()
 {
-
+	stop();
 }
 
 void httpserver::HttpServer::start( const std::string& address, const std::string& port )

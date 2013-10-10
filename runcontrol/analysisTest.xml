@@ -197,7 +197,7 @@
 		<xc:Endpoint hostname="localhost" network="dhcalatcp" port="31810" protocol="atcp" service="i2o"/>
 		<xc:Application class="evf::FUEventProcessor" id="61" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:evf::FUEventProcessor" xsi:type="soapenc:Struct">
-				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CMSSWReleases/GlibTestStand/src/XtalDAQ/OnlineCBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
+				<parameterSet xsi:type="xsd:string">file:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/python/standaloneDAQ_cfg.py</parameterSet>
 				<hasPrescaleService xsi:type="xsd:boolean">false</hasPrescaleService>
 				<hasModuleWebRegistry xsi:type="xsd:boolean">true</hasModuleWebRegistry>
 				<hasServiceWebRegistry xsi:type="xsd:boolean">true</hasServiceWebRegistry>

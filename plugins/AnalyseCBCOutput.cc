@@ -65,7 +65,16 @@ cbcanalyser::AnalyseCBCOutput::AnalyseCBCOutput( const edm::ParameterSet& config
 
 cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::~AnalyseCBCOutput(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
+
+	// For some reason I can't fathom, the last run is never included. I'll try and load the state
+	// back from disk.
+	if( eventsProcessed_==0 && !savedStateFilename_.empty() )
+	{
+		try{ restoreState( savedStateFilename_ ); }
+		catch( std::exception& error ){ std::cerr << "Couldn't restore state because: " << error.what() << std::endl; }
+	}
+
 
 	//
 	// Now that the job has finished, create root histograms from all of the
@@ -100,6 +109,9 @@ void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
 {
 	// Copy to a non-atomic version before the loop
 	float globalThreshold=globalComparatorThreshold_;
+	// The global threshold should be between 0 and 1, so make sure this is the case
+	if( globalThreshold<0 ) globalThreshold=0;
+	else if( globalThreshold>1 ) globalThreshold=1;
 
 	// Loop over all the FEDs
 	for( const auto& fedIndex : detectorSCurves_.getValidFedIndices() )
@@ -110,16 +122,21 @@ void cbcanalyser::AnalyseCBCOutput::dumpSCurveToStream( std::ostream& output )
 		{
 			// Loop over all the strips of the CBC chip connected on this channel
 			auto& channelSCurves=fedSCurves.getFedChannelSCurves(channelIndex);
-			output << "FED " << fedIndex << ", FED channel " << channelIndex << " -" << "\n";
+			output << "FED " << fedIndex << ", FED channel " << channelIndex << ", threshold=" << globalThreshold << " -" << "\n";
 			for( const auto& stripIndex : channelSCurves.getValidStripIndices() )
 			{
 				auto& sCurve=channelSCurves.getStripSCurve(stripIndex);
 				// I don't want to dump every single point along the x-axis, just enough
 				// to see what's going on. I'll dump information for the point on the x-axis
 				// (i.e. threshold or whatever) that is currently being modified.
-				const auto& sCurveEntry=sCurve.getEntry( globalThreshold );
+				//
+				// Convert the [0,1] of the global threshold to the bin number in the s-curve.
+				// Add the 0.5 so that round happens properly, although I also need to take 1
+				// off because bin numbers start from 0.
+				size_t thresholdBin=static_cast<size_t>( globalThreshold*sCurve.maxiumumEntries()-0.5 );
+				const auto& sCurveEntry=sCurve.getEntry( thresholdBin );
 
-				output << std::setw(3) << std::right << sCurveEntry.eventsOn() << ":" << std::setw(3) << std::left << sCurveEntry.eventsOff() << " ";
+				output << std::setw(3) << std::right << sCurveEntry.eventsOn() << ":" << std::setw(3) << std::left << sCurveEntry.eventsOff() << "(" << std::setw(3) << thresholdBin << ") ";
 				if( stripIndex%16 == 15 ) output << "\n";
 			} // end of loop over strips
 		} // end of loop over FED channels
@@ -144,8 +161,6 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 	// The global threshold should be between 0 and 1, so make sure this is the case
 	if( globalThreshold<0 ) globalThreshold=0;
 	else if( globalThreshold>1 ) globalThreshold=1;
-	// Convert this [0,1] to the bin number in the s-curve. Add the 0.5 so that round happens properly.
-	size_t thresholdBin=static_cast<size_t>( globalComparatorThreshold_*cbcanalyser::SCurve::maxiumumEntries()+0.5 );
 
 	size_t fedIndex;
 	for( fedIndex=0; fedIndex<sistrip::CMS_FED_ID_MAX; ++fedIndex )
@@ -186,13 +201,18 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 						for( size_t stripNumber=0; stripNumber<hits.size(); ++stripNumber )
 						{
 							cbcanalyser::SCurve& sCurve=fedChannelSCurves.getStripSCurve(stripNumber);
+							// Convert the [0,1] of the global threshold to the bin number in the s-curve.
+							// Add the 0.5 so that round happens properly, although I also need to take 1
+							// off because bin numbers start from 0.
+							size_t thresholdBin=static_cast<size_t>( globalThreshold*sCurve.maxiumumEntries()-0.5 );
 							cbcanalyser::SCurveEntry& sCurveEntry=sCurve.getEntry( thresholdBin );
 
 							if( hits[stripNumber]==true ) ++sCurveEntry.eventsOn();
 							else ++sCurveEntry.eventsOff();
+
+							if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&sCurveEntry;
 						}
 
-						if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&fedChannelSCurves.getStripSCurve(0).getEntry( thresholdBin );
 					} // end of loop over FED channels
 				}
 			}
@@ -233,12 +253,12 @@ void cbcanalyser::AnalyseCBCOutput::endRun( const edm::Run& run, const edm::Even
 
 void cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::beginLuminosityBlock(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::endLuminosityBlock( const edm::LuminosityBlock& lumiBlock, const edm::EventSetup& setup )
 {
-	std::cout << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock()" << std::endl;
+	std::cout << "cbcanalyser::AnalyseCBCOutput::endLuminosityBlock(). Analysed " << eventsProcessed_ << " events in " << runsProcessed_ << " runs." << std::endl;
 }
 
 void cbcanalyser::AnalyseCBCOutput::handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply )

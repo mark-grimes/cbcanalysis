@@ -52,7 +52,8 @@ namespace cbcanalyser
 	class SCurve
 	{
 	public:
-		SCurve();
+		/** @brief Constructor that specifies how many bins the SCurve will have. */
+		SCurve( size_t numberOfEntries=256 );
 		bool operator==( const SCurve& otherSCurve ) const;
 		bool operator!=( const SCurve& otherSCurve ) const;
 
@@ -72,7 +73,7 @@ namespace cbcanalyser
 		void restoreFromStream( std::istream& inputStream );
 
 		/// @brief Returns the number of entries possible. I.e. any call to getEntry should be in the range 0 to this value-1
-		static size_t maxiumumEntries();
+		size_t maxiumumEntries();
 	protected:
 		std::vector<SCurveEntry> entries_;
 	};
