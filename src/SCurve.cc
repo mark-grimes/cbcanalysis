@@ -6,6 +6,9 @@
 #include <iostream>
 #include <iomanip>
 #include <TH1F.h>
+#include <TF1.h>
+#include <TMath.h>
+#include <TEfficiency.h>
 #include <TDirectory.h>
 
 //----------------------------------------------------------------------------------------------
@@ -86,7 +89,7 @@ void cbcanalyser::SCurveEntry::restoreFromStream( std::istream& inputStream )
 //----------------------------------------------------------------------------------------------
 
 cbcanalyser::SCurve::SCurve( size_t numberOfEntries )
-	: entries_( numberOfEntries )
+	: entries_( numberOfEntries ), fit_maxEfficiency_(-1.), fit_standardDeviation_(-1), fit_mean_(-1)
 {
 }
 
@@ -122,22 +125,38 @@ size_t cbcanalyser::SCurve::size() const
 	return entries_.size();
 }
 
-std::unique_ptr<TH1> cbcanalyser::SCurve::createHistogram( const std::string& name ) const
+std::unique_ptr<TEfficiency> cbcanalyser::SCurve::createHistogram( const std::string& name ) const
 {
 	// Work out what bin width I need for the given number of entries so that the range
 	// runs from 0 to 1.
 	float binWidth=1.0/static_cast<float>(entries_.size());
-	std::unique_ptr<TH1> pNewHistogram( new TH1F( name.c_str(), name.c_str(), entries_.size(), -binWidth, 1+binWidth ) );
-	pNewHistogram->SetDirectory(nullptr);
+
+	// Make two TH1F to store all events and passed (on) events
+	TH1F hAll(name.c_str(),name.c_str(), entries_.size(), -binWidth, 1+binWidth);
+        TH1F hPass("Pass","Pass", entries_.size(), -binWidth, 1+binWidth);
 
 	for( size_t index=0; index<entries_.size(); ++index )
 	{
 		const cbcanalyser::SCurveEntry& entry=getEntry(index);
-		pNewHistogram->SetBinContent( index+1, entry.fraction() ); // +1 because root starts bin numbers from 1
-		pNewHistogram->SetBinError( index+1, entry.fractionError() ); // +1 because root starts bin numbers from 1
+		hAll.SetBinContent( index+1, entry.eventsOn() + entry.eventsOff() );
+                hPass.SetBinContent( index+1, entry.eventsOn() );
 	}
 
+        std::unique_ptr<TEfficiency> pNewHistogram( new TEfficiency( hPass, hAll ) );
+        pNewHistogram->SetDirectory(nullptr);
+
 	return pNewHistogram;
+}
+
+void cbcanalyser::SCurve::storeFitParameters( const TF1& fittedFunction )
+{
+  if ( fittedFunction.GetNpar() != 3 ) {
+    return;
+  }
+  fit_maxEfficiency_=fittedFunction.GetParameter(0);
+  fit_maxEfficiency_=fittedFunction.GetParameter(1);
+  fit_maxEfficiency_=fittedFunction.GetParameter(2);
+  return;
 }
 
 void cbcanalyser::SCurve::dumpToStream( std::ostream& outputStream ) const
@@ -204,9 +223,19 @@ void cbcanalyser::FedChannelSCurves::createHistograms( TDirectory* pParentDirect
 		stringConverter.str("");
 		stringConverter << "Strip " << std::setfill('0') << std::setw(2) << stripNumberSCurvesPair.first;
 
-		std::unique_ptr<TH1> pNewHistogram=stripNumberSCurvesPair.second.createHistogram( stringConverter.str() );
+		std::unique_ptr<TEfficiency> pNewHistogram=stripNumberSCurvesPair.second.createHistogram( stringConverter.str() );
 		pNewHistogram->SetDirectory( pParentDirectory );
+
+		// Fit this S-Curve
+		cbcanalyser::FitSCurve fit( *pNewHistogram, stringConverter.str() );
+		std::unique_ptr<TF1> pNewFittedFunction=fit.performFit();
+
+		// Set current directory and write fitted function
+		pParentDirectory->cd();
+		pNewFittedFunction->Write();
+
 		pNewHistogram.release(); // When the directory gets set, the directory takes ownership
+		pNewFittedFunction.release();
 	}
 
 }
@@ -248,6 +277,27 @@ void cbcanalyser::FedChannelSCurves::restoreFromStream( std::istream& inputStrea
 	// If everything went smoothly and I get to this point, I can overwrite the contents
 	// with what was read from disk.
 	(*this)=temporaryInstance;
+}
+
+//----------------------------------------------------------------------------------------------
+//-------------------------- cbcanalyser::FitSCurve definitions --------------------------------
+//----------------------------------------------------------------------------------------------
+
+cbcanalyser::FitSCurve::FitSCurve( TEfficiency & sCurve, const std::string& name )
+        : sCurveToFit_(sCurve)
+{
+  fitFunction_ = new TF1(TString(name+"_fittedFunction"), "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", 0, 1 );
+}
+
+std::unique_ptr<TF1> cbcanalyser::FitSCurve::performFit() const
+{
+//   Define fit function and set initial parameters
+  std::unique_ptr<TF1> pFitFunction(fitFunction_);
+  pFitFunction->SetParameters(1., 1.1, 0.5); // Set initial parameters
+  pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
+  // Do the fit
+  sCurveToFit_.Fit(pFitFunction.get());
+  return pFitFunction;
 }
 
 //----------------------------------------------------------------------------------------------

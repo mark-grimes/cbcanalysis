@@ -10,7 +10,8 @@
 //
 // Forward declarations
 //
-class TH1;
+class TEfficiency;
+class TF1;
 class TDirectory;
 
 namespace cbcanalyser
@@ -67,15 +68,54 @@ namespace cbcanalyser
 		 * The parent directory will be set to nullptr, so unless you call SetDirectory
 		 * on the result the histogram will be held in memory only.
 		 */
-		std::unique_ptr<TH1> createHistogram( const std::string& name ) const;
+		std::unique_ptr<TEfficiency> createHistogram( const std::string& name ) const;
+
+
 
 		void dumpToStream( std::ostream& outputStream ) const;
 		void restoreFromStream( std::istream& inputStream );
 
 		/// @brief Returns the number of entries possible. I.e. any call to getEntry should be in the range 0 to this value-1
 		size_t maxiumumEntries();
+
+
 	protected:
 		std::vector<SCurveEntry> entries_;
+
+		/** @brief Stores parameters of function passed to it
+		 *
+		 * Expects function with exactly 3 parameters.
+		 */
+		void storeFitParameters ( const TF1& fittedFunction );
+
+		// Fit results
+		float fit_maxEfficiency_;
+		float fit_standardDeviation_;
+		float fit_mean_;
+
+
+	};
+
+	/** @brief Class to fit SCurve
+	 *
+         * @author Emyr Clement (mark.grimes@bristol.ac.uk)
+         * @date 17/Oct/2013
+	 */
+	class FitSCurve
+	{
+	public:
+	    FitSCurve( TEfficiency & sCurve, const std::string& name );
+
+            /** @brief Performs a fit of the fitFunction_ to sCurveToFit_
+             *
+             */
+            std::unique_ptr<TF1> performFit() const;
+
+	protected:
+            // The sCurve to fit
+            TEfficiency & sCurveToFit_;
+            // The function to fit
+            TF1 *fitFunction_;
 	};
 
 	/** @brief Convenience class to store all the s-curves for a FED channel.
