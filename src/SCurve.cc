@@ -129,69 +129,39 @@ size_t cbcanalyser::SCurve::size() const
 
 std::unique_ptr<TEfficiency> cbcanalyser::SCurve::createHistogram( const std::string& name ) const
 {
-	std::vector<double> binLowerEdges;
-
 	if( entries_.empty() ) return std::unique_ptr<TEfficiency>(); // return nullptr if histogram is undefined
-	else if( entries_.size()==1 ) // trap an edge case
+
+
+	// First figure out what binning I need for the entries that I have
+	std::vector<double> binLowerEdges;
+	cbcanalyser::calculateBinning( binLowerEdges, entries_, [](std::map<float,SCurveEntry>::const_iterator iValue)->float{return iValue->first;} );
+
+	std::unique_ptr<TEfficiency> pNewHistogram( new TEfficiency( name.c_str(), name.c_str(), binLowerEdges.size()-1, &binLowerEdges[0] ) );
+	pNewHistogram->SetDirectory(nullptr);
+
+	for( const auto& thresholdEntryPair : entries_ )
 	{
-		float threshold=entries_.begin()->first;
-		binLowerEdges.push_back( threshold-0.5 );
-		binLowerEdges.push_back( threshold+0.5 ); // arbitrary bin width
+		int binNumber=pNewHistogram->GetGlobalBin( thresholdEntryPair.first );
+		pNewHistogram->SetPassedEvents( binNumber, thresholdEntryPair.second.eventsOn() );
+		pNewHistogram->SetTotalEvents( binNumber, thresholdEntryPair.second.eventsOn()+thresholdEntryPair.second.eventsOff() );
 	}
-	else
-	{
-		float lastThreshold=0;
-		float previousBinHighEdge=0;
-		for( auto iThresholdEntryPair=entries_.begin(); iThresholdEntryPair!=entries_.end(); ++iThresholdEntryPair )
-		{
-			float currentThreshold=iThresholdEntryPair->first;
-
-			if( iThresholdEntryPair!=entries_.begin() ) // Need to know the first 2 thresholds before I can begin
-			{
-				// First bin will just have the low edge the same distance as the high edge (which is half way to the next bin).
-				if( binLowerEdges.empty() ) binLowerEdges.push_back( lastThreshold-(currentThreshold-lastThreshold)/2 );
-
-				float binLowEdge=(lastThreshold+currentThreshold)/2;
-
-				if( !binLowerEdges.empty() ) // If this is the second iThresholdEntryPair, then I don't need to do this part
-				{
-					// If the current bin low edge isn't the same as the previous bin high edge
-					// then I need to add in a "dummy" bin. This won't be filled with anything so
-					// shouldn't affect the fitting or anything.
-					// These are floats, so I'll check equality by making sure they're within an
-					// arbitrary percentage of each other.
-					if( std::fabs( 1-binLowEdge/previousBinHighEdge )>std::pow( 10, -4 ) ) binLowerEdges.push_back( previousBinHighEdge );
-				}
-
-				binLowerEdges.push_back( binLowEdge );
-
-				// Set this up ready for the next loop
-				previousBinHighEdge=currentThreshold+(currentThreshold-lastThreshold)/2;
-			}
-
-			lastThreshold=currentThreshold;
-		} // End of loop over entries_
-
-		binLowerEdges.push_back( previousBinHighEdge ); // Finally need to add the highest edge of the last bin
-	}
-
-	// Work out what bin width I need for the given number of entries so that the range
-	// runs from 0 to 1.
-	float binWidth=1.0/static_cast<float>(entries_.size());
-
-	// Make two TH1F to store all events and passed (on) events
-	TH1F hAll(name.c_str(),name.c_str(), entries_.size(), -binWidth, 1+binWidth);
-        TH1F hPass("Pass","Pass", entries_.size(), -binWidth, 1+binWidth);
-
-	for( size_t index=0; index<entries_.size(); ++index )
-	{
-		const cbcanalyser::SCurveEntry& entry=getEntry(index);
-		hAll.SetBinContent( index+1, entry.eventsOn() + entry.eventsOff() );
-                hPass.SetBinContent( index+1, entry.eventsOn() );
-	}
-
-        std::unique_ptr<TEfficiency> pNewHistogram( new TEfficiency( hPass, hAll ) );
-        pNewHistogram->SetDirectory(nullptr);
+//	// Work out what bin width I need for the given number of entries so that the range
+//	// runs from 0 to 1.
+//	float binWidth=1.0/static_cast<float>(entries_.size());
+//
+//	// Make two TH1F to store all events and passed (on) events
+//	TH1F hAll(name.c_str(),name.c_str(), entries_.size(), -binWidth, 1+binWidth);
+//        TH1F hPass("Pass","Pass", entries_.size(), -binWidth, 1+binWidth);
+//
+//	for( size_t index=0; index<entries_.size(); ++index )
+//	{
+//		const cbcanalyser::SCurveEntry& entry=getEntry(index);
+//		hAll.SetBinContent( index+1, entry.eventsOn() + entry.eventsOff() );
+//                hPass.SetBinContent( index+1, entry.eventsOn() );
+//	}
+//
+//        std::unique_ptr<TEfficiency> pNewHistogram( new TEfficiency( hPass, hAll ) );
+//        pNewHistogram->SetDirectory(nullptr);
 
 	return pNewHistogram;
 }

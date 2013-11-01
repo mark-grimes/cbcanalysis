@@ -169,14 +169,9 @@ void SCurveUnitTestSuite::testCalculateBinning()
 	//
 	// So the output vector should contain [2,4,6,7.25,8.75,9.25,9.75] (lower edges plus global upper edge)
 
-	typedef std::vector<float> T_outputContainer;
-	typedef std::map<float,std::string> T_inputContainer;
-	std::function<typename T_outputContainer::value_type(typename T_inputContainer::const_iterator)> retriever=[](typename T_inputContainer::const_iterator iValue){return iValue->first;};
 
 	binLowerEdges.clear();
-	cbcanalyser::calculateBinning( binLowerEdges, centresAndValues, retriever );
-//	cbcanalyser::calculateBinning( binLowerEdges, centresAndValues, [](typename T_inputContainer::const_iterator iValue)->typename T_outputContainer::value_type{return iValue->first;} );
-//	cbcanalyser::calculateBinning( binLowerEdges, centresAndValues, [](std::map<float,std::string>::const_iterator iValue)->float{return iValue->first;} );
+	cbcanalyser::calculateBinning( binLowerEdges, centresAndValues, [](std::map<float,std::string>::const_iterator iValue)->float{return iValue->first;} );
 
 
 	CPPUNIT_ASSERT( binLowerEdges.size()==7 );

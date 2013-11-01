@@ -66,8 +66,16 @@ namespace cbcanalyser
 	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
 	 * @date 29/Oct/2013
 	 */
+	template<class T_outputContainer, class T_inputContainer, class T_retriever>
+	static void calculateBinning( T_outputContainer& outputBinLowerEdges, const T_inputContainer& inputBinCentres, T_retriever retriever );
+
+	/** @brief Version of calculateBinning that provides a default T_retriever for when T_inputContainer is a vector
+	 *
+	 * See the notes for the other overload of calculateBinning.
+	 */
 	template<class T_outputContainer, class T_inputContainer>
-	static void calculateBinning( T_outputContainer& outputBinLowerEdges, const T_inputContainer& inputBinCentres, std::function<typename T_outputContainer::value_type(typename T_inputContainer::const_iterator)> retriever=[](typename T_inputContainer::const_iterator iValue){return *iValue;} );
+	static void calculateBinning( T_outputContainer& outputBinLowerEdges, const T_inputContainer& inputBinCentres );
+
 
 	/** @brief Class to record data for a single bin in an s-curve.
 	 *
@@ -254,8 +262,8 @@ namespace cbcanalyser
 #include <stdexcept>
 #include <algorithm>
 #include <list>
-template<class T_outputContainer, class T_inputContainer>
-void cbcanalyser::calculateBinning( T_outputContainer& outputBinLowerEdges, const T_inputContainer& inputBinCentres, std::function<typename T_outputContainer::value_type(typename T_inputContainer::const_iterator)> retriever )
+template<class T_outputContainer, class T_inputContainer, class T_retriever>
+void cbcanalyser::calculateBinning( T_outputContainer& outputBinLowerEdges, const T_inputContainer& inputBinCentres, T_retriever retriever )
 {
 	// Create a typedef for the type of the axis values to make life easier
 	typedef typename T_outputContainer::value_type value_type;
@@ -416,4 +424,11 @@ void cbcanalyser::calculateBinning( T_outputContainer& outputBinLowerEdges, cons
 	}
 
 }
+
+template<class T_outputContainer, class T_inputContainer>
+void cbcanalyser::calculateBinning( T_outputContainer& outputBinLowerEdges, const T_inputContainer& inputBinCentres )
+{
+	calculateBinning( outputBinLowerEdges, inputBinCentres, [](typename T_inputContainer::const_iterator iValue){return *iValue;} );
+}
+
 #endif
