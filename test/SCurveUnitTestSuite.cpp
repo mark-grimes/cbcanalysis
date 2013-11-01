@@ -10,6 +10,7 @@ class SCurveUnitTestSuite : public CPPUNIT_NS::TestFixture
 {
 	CPPUNIT_TEST_SUITE(SCurveUnitTestSuite);
 	CPPUNIT_TEST(testSaveAndRestore);
+	CPPUNIT_TEST(testCalculateBinning);
 	CPPUNIT_TEST_SUITE_END();
 
 protected:
@@ -19,6 +20,7 @@ public:
 
 protected:
 	void testSaveAndRestore();
+	void testCalculateBinning();
 };
 
 
@@ -114,4 +116,76 @@ void SCurveUnitTestSuite::testSaveAndRestore()
 			}
 		}
 	}
+}
+
+void SCurveUnitTestSuite::testCalculateBinning()
+{
+	std::vector<float> binCentres;
+	binCentres.push_back(3);
+	binCentres.push_back(5);
+	binCentres.push_back(8);
+	binCentres.push_back(9);
+
+	// The bin centres above should produce the following binning:
+	// 2-4      : bin with centre 3
+	// 4-6      : bin with centre 5
+	// 6-7.5    : dummy bin as a spacer
+	// 7.5-8.5  : bin with centre 8
+	// 8.5-9.5  : bin with centre 9
+	//
+	// So the output vector should contain [2,4,6,7.5,8.5,9.5] (lower edges plus global upper edge)
+
+
+	std::vector<float> binLowerEdges;
+	cbcanalyser::calculateBinning( binLowerEdges, binCentres );
+
+	CPPUNIT_ASSERT( binLowerEdges.size()==6 );
+	CPPUNIT_ASSERT( binLowerEdges[0]==2 );
+	CPPUNIT_ASSERT( binLowerEdges[1]==4 );
+	CPPUNIT_ASSERT( binLowerEdges[2]==6 );
+	CPPUNIT_ASSERT( binLowerEdges[3]==7.5 );
+	CPPUNIT_ASSERT( binLowerEdges[4]==8.5 );
+	CPPUNIT_ASSERT( binLowerEdges[5]==9.5 );
+
+	//
+	// Now try the same thing with a map and custom value retriever
+	//
+	std::map<float,std::string> centresAndValues;
+	centresAndValues[3]="Some random";
+	centresAndValues[5]="data that";
+	centresAndValues[8]="I don't";
+	centresAndValues[9]="care about";
+	// Adding an extra bin at the end changes the widths of both the bin centred on 9
+	// and the bin centred on 8. The bin centred on 9 has to be smaller, which allows
+	// the bin centred on 8 to be bigger.
+	centresAndValues[9.5]="blah blah blah";
+	// The bin centres above should now produce the following binning:
+	// 2-4        : bin with centre 3
+	// 4-6        : bin with centre 5
+	// 6-7.25     : dummy bin as a spacer
+	// 7.25-8.75  : bin with centre 8
+	// 8.75-9.25  : bin with centre 9
+	// 9.25-9.75  : bin with centre 9.5
+	//
+	// So the output vector should contain [2,4,6,7.25,8.75,9.25,9.75] (lower edges plus global upper edge)
+
+	typedef std::vector<float> T_outputContainer;
+	typedef std::map<float,std::string> T_inputContainer;
+	std::function<typename T_outputContainer::value_type(typename T_inputContainer::const_iterator)> retriever=[](typename T_inputContainer::const_iterator iValue){return iValue->first;};
+
+	binLowerEdges.clear();
+	cbcanalyser::calculateBinning( binLowerEdges, centresAndValues, retriever );
+//	cbcanalyser::calculateBinning( binLowerEdges, centresAndValues, [](typename T_inputContainer::const_iterator iValue)->typename T_outputContainer::value_type{return iValue->first;} );
+//	cbcanalyser::calculateBinning( binLowerEdges, centresAndValues, [](std::map<float,std::string>::const_iterator iValue)->float{return iValue->first;} );
+
+
+	CPPUNIT_ASSERT( binLowerEdges.size()==7 );
+	CPPUNIT_ASSERT( binLowerEdges[0]==2 );
+	CPPUNIT_ASSERT( binLowerEdges[1]==4 );
+	CPPUNIT_ASSERT( binLowerEdges[2]==6 );
+	CPPUNIT_ASSERT( binLowerEdges[3]==7.25 );
+	CPPUNIT_ASSERT( binLowerEdges[4]==8.75 );
+	CPPUNIT_ASSERT( binLowerEdges[5]==9.25 );
+	CPPUNIT_ASSERT( binLowerEdges[6]==9.75 );
+
 }

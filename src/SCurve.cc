@@ -89,7 +89,7 @@ void cbcanalyser::SCurveEntry::restoreFromStream( std::istream& inputStream )
 //----------------------------------------------------------------------------------------------
 
 cbcanalyser::SCurve::SCurve( size_t numberOfEntries )
-	: entries_( numberOfEntries ), fit_maxEfficiency_(-1.), fit_standardDeviation_(-1), fit_mean_(-1)
+	: fit_maxEfficiency_(-1.), fit_standardDeviation_(-1), fit_mean_(-1)
 {
 }
 
@@ -97,12 +97,12 @@ bool cbcanalyser::SCurve::operator==( const SCurve& otherSCurve ) const
 {
 	if( entries_.size()!=otherSCurve.entries_.size() ) return false;
 
-	for( size_t index=0; index<entries_.size(); ++index )
-	{
-		if( entries_[index]!=otherSCurve.entries_[index] ) return false;
-	}
+//	for( size_t index=0; index<entries_.size(); ++index )
+//	{
+//		if( entries_[index]!=otherSCurve.entries_[index] ) return false;
+//	}
 
-	return true;
+	return entries_==otherSCurve.entries_;
 }
 
 bool cbcanalyser::SCurve::operator!=( const SCurve& otherSCurve ) const
@@ -110,14 +110,16 @@ bool cbcanalyser::SCurve::operator!=( const SCurve& otherSCurve ) const
 	return !( (*this)==otherSCurve );
 }
 
-cbcanalyser::SCurveEntry& cbcanalyser::SCurve::getEntry( size_t index )
+cbcanalyser::SCurveEntry& cbcanalyser::SCurve::getEntry( float threshold )
 {
-	return entries_.at(index);
+	return entries_[threshold];
 }
 
-const cbcanalyser::SCurveEntry& cbcanalyser::SCurve::getEntry( size_t index ) const
+const cbcanalyser::SCurveEntry& cbcanalyser::SCurve::getEntry( float threshold ) const
 {
-	return entries_.at(index);
+	const auto& findResult=entries_.find( threshold );
+	if( findResult==entries_.end() ) throw std::runtime_error( "No entry for '"+std::to_string(threshold)+"' in SCurve" );
+	return findResult->second;
 }
 
 size_t cbcanalyser::SCurve::size() const
@@ -127,6 +129,52 @@ size_t cbcanalyser::SCurve::size() const
 
 std::unique_ptr<TEfficiency> cbcanalyser::SCurve::createHistogram( const std::string& name ) const
 {
+	std::vector<double> binLowerEdges;
+
+	if( entries_.empty() ) return std::unique_ptr<TEfficiency>(); // return nullptr if histogram is undefined
+	else if( entries_.size()==1 ) // trap an edge case
+	{
+		float threshold=entries_.begin()->first;
+		binLowerEdges.push_back( threshold-0.5 );
+		binLowerEdges.push_back( threshold+0.5 ); // arbitrary bin width
+	}
+	else
+	{
+		float lastThreshold=0;
+		float previousBinHighEdge=0;
+		for( auto iThresholdEntryPair=entries_.begin(); iThresholdEntryPair!=entries_.end(); ++iThresholdEntryPair )
+		{
+			float currentThreshold=iThresholdEntryPair->first;
+
+			if( iThresholdEntryPair!=entries_.begin() ) // Need to know the first 2 thresholds before I can begin
+			{
+				// First bin will just have the low edge the same distance as the high edge (which is half way to the next bin).
+				if( binLowerEdges.empty() ) binLowerEdges.push_back( lastThreshold-(currentThreshold-lastThreshold)/2 );
+
+				float binLowEdge=(lastThreshold+currentThreshold)/2;
+
+				if( !binLowerEdges.empty() ) // If this is the second iThresholdEntryPair, then I don't need to do this part
+				{
+					// If the current bin low edge isn't the same as the previous bin high edge
+					// then I need to add in a "dummy" bin. This won't be filled with anything so
+					// shouldn't affect the fitting or anything.
+					// These are floats, so I'll check equality by making sure they're within an
+					// arbitrary percentage of each other.
+					if( std::fabs( 1-binLowEdge/previousBinHighEdge )>std::pow( 10, -4 ) ) binLowerEdges.push_back( previousBinHighEdge );
+				}
+
+				binLowerEdges.push_back( binLowEdge );
+
+				// Set this up ready for the next loop
+				previousBinHighEdge=currentThreshold+(currentThreshold-lastThreshold)/2;
+			}
+
+			lastThreshold=currentThreshold;
+		} // End of loop over entries_
+
+		binLowerEdges.push_back( previousBinHighEdge ); // Finally need to add the highest edge of the last bin
+	}
+
 	// Work out what bin width I need for the given number of entries so that the range
 	// runs from 0 to 1.
 	float binWidth=1.0/static_cast<float>(entries_.size());
@@ -164,7 +212,8 @@ void cbcanalyser::SCurve::dumpToStream( std::ostream& outputStream ) const
 	outputStream << "SCurve " << entries_.size() << " ";
 	for( const auto& entry : entries_ )
 	{
-		entry.dumpToStream(outputStream); // Then delegate to the SCurveEntry class
+		outputStream << entry.first << " ";
+		entry.second.dumpToStream(outputStream); // Then delegate to the SCurveEntry class
 	}
 }
 
@@ -184,8 +233,10 @@ void cbcanalyser::SCurve::restoreFromStream( std::istream& inputStream )
 
 	for( size_t entry=0; entry<numberOfEntries; ++entry )
 	{
+		float threshold;
+		inputStream >> threshold;
 		// Delegate to each entry to restore its state from disk
-		temporaryInstance.entries_[entry].restoreFromStream(inputStream);
+		temporaryInstance.entries_[threshold].restoreFromStream(inputStream);
 	}
 
 	// If everything went smoothly and I get to this point, I can overwrite the contents
@@ -197,6 +248,7 @@ size_t cbcanalyser::SCurve::maxiumumEntries()
 {
 	return entries_.size();
 }
+
 
 //----------------------------------------------------------------------------------------------
 //----------------------- cbcanalyser::FedChannelSCurves definitions ---------------------------
@@ -454,3 +506,4 @@ void cbcanalyser::DetectorSCurves::restoreFromStream( std::istream& inputStream 
 	// with what was read from disk.
 	(*this)=temporaryInstance;
 }
+
