@@ -254,7 +254,7 @@ std::unique_ptr<TF1> cbcanalyser::SCurve::fit() const
 	// possible to supply the "Q" option to disable output, but that doesn't seem
 	// to work. Maybe because it's a TEfficiency and not a TH1.
 	{
-		RedirectedPrintfSentry printfRedirector;
+		//RedirectedPrintfSentry printfRedirector;
 		pHistogram->Fit( pFitFunction.get() );
 	}
 
