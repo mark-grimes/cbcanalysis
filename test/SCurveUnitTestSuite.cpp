@@ -264,7 +264,7 @@ void SCurveUnitTestSuite::testFitting()
 	// Create an SCurve and add data that follows an ideal error function
 	//
 
-	// Fake 100 measurements between 0 and 1
+	// Fake some measurements that follow an ideal error function
 	const size_t numberOfThresholds=100;
 	const size_t numberOfEventsPerThreshold=100;
 	const float firstThreshold=3;
