@@ -45,6 +45,15 @@ namespace cbcanalyser
 		/** @brief The handler that server_ will call when a HTTP request comes in. */
 		virtual void handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply );
 	protected:
+		/** @brief Method called by handleRequest to handle a request for "scurveFits". */
+		void request_scurveFits( httpserver::HttpServer::Reply& reply );
+
+		/** @brief Method called by handleRequest to handle a request for "createFakeData". */
+		void request_createFakeData( httpserver::HttpServer::Reply& reply );
+
+		/** @brief Method called by handleRequest to handle a request for "changeVar". */
+		void request_changeVar( httpserver::HttpServer::Reply& reply, const std::vector< std::pair<std::string,std::string> >& parameters );
+
 		/** @brief Save the current state to disk so that another AnalyseCBCOutput can be restored to the same state.
 		 *
 		 * I've been having a lot of problems with the DAQ runcontrol. The only way I can take multiple runs (as of
