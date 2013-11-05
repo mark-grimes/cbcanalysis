@@ -130,6 +130,18 @@ namespace cbcanalyser
 		 */
 		std::unique_ptr<TEfficiency> createHistogram( const std::string& name ) const;
 
+		/** @brief Fits the s-curve with an error function and returns the TF1.
+		 */
+		std::unique_ptr<TF1> fit() const;
+
+		/** @brief Returns the fit parameters for the s-curve.
+		 *
+		 * The returned std::tuple contains the three fit parameters. These are: </br>
+		 * tuple entry 0 - The maximum efficiency
+		 * tuple entry 1 - The standard deviation
+		 * tuple entry 2 - The mean
+		 */
+		std::tuple<float,float,float> fitParameters() const;
 
 
 		void dumpToStream( std::ostream& outputStream ) const;

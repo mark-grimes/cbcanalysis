@@ -12,6 +12,73 @@
 #include <TDirectory.h>
 
 //----------------------------------------------------------------------------------------------
+//---------------------------- Unnamed namespace declarations ----------------------------------
+//---------------------- (definitions are at the bottom of the file) ---------------------------
+//----------------------------------------------------------------------------------------------
+namespace
+{
+	/** @brief Sentry class to restore a redirected output stream if an exception is thrown.
+	 *
+	 * Used for when standard output is redirected to stop all the crap the minuit prints out.
+	 * When this goes out of scope standard output will be reset to go to wherever it went
+	 * before hand.
+	 *
+	 * This isn't actually used because after testing I realised it doesn't affect oldschool
+	 * printf which is what I wanted. It might come in useful at some point though so I'll
+	 * leave it here for now.
+	 *
+	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
+	 * @date 04/Nov/2013
+	 */
+	class RedirectedStreamSentry
+	{
+	public:
+		RedirectedStreamSentry( std::ostream& outputStreamToRedirect, std::streambuf* placeToRedirectTo )
+			: redirectedStream_(outputStreamToRedirect), pOriginalOutput_( outputStreamToRedirect.rdbuf() )
+		{
+			redirectedStream_.rdbuf( placeToRedirectTo );
+		}
+		~RedirectedStreamSentry()
+		{
+			redirectedStream_.rdbuf( pOriginalOutput_ );
+		}
+	protected:
+		std::ostream& redirectedStream_;
+		std::streambuf* pOriginalOutput_;
+	};
+
+	/** @brief Sentry class to work with old school printf as RedirectedStreamSentry does for std::cout
+	 *
+	 * I wrote the RedirectedStreamSentry class and then realised it didn't work because Minuit
+	 * uses stdio instead of iostream. Apparantly this code is non-portable and a little dodgy
+	 * though. I've put an "#ifndef" in so that it can be disabled if DONT_USE_DODGY_PRINTF_REDIRECTION
+	 * is defined.
+	 *
+	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
+	 */
+	class RedirectedPrintfSentry
+	{
+	public:
+		RedirectedPrintfSentry()
+		{
+#ifndef DONT_USE_DODGY_PRINTF_REDIRECTION
+			oldStdout_=dup(1);
+			freopen ("/dev/null","w",stdout);
+#endif
+		}
+		~RedirectedPrintfSentry()
+		{
+#ifndef DONT_USE_DODGY_PRINTF_REDIRECTION
+			FILE *fp2 = fdopen(oldStdout_, "w");
+			fclose(stdout);
+			*stdout = *fp2;
+#endif
+		}
+	protected:
+		int oldStdout_;
+	};
+}
+//----------------------------------------------------------------------------------------------
 //------------------------- cbcanalyser::SCurveEntry definitions -------------------------------
 //----------------------------------------------------------------------------------------------
 
@@ -141,9 +208,12 @@ std::unique_ptr<TEfficiency> cbcanalyser::SCurve::createHistogram( const std::st
 
 	for( const auto& thresholdEntryPair : entries_ )
 	{
-		int binNumber=pNewHistogram->GetGlobalBin( thresholdEntryPair.first );
-		pNewHistogram->SetPassedEvents( binNumber, thresholdEntryPair.second.eventsOn() );
+		// Need to do a const cast because for some reason FindBin is not a const method
+		// and GetPassedHistogram returns a const TH1*. TEfficiency has no direct FindBin
+		// method.
+		int binNumber=const_cast<TH1*>(pNewHistogram->GetPassedHistogram())->FindBin( thresholdEntryPair.first );
 		pNewHistogram->SetTotalEvents( binNumber, thresholdEntryPair.second.eventsOn()+thresholdEntryPair.second.eventsOff() );
+		pNewHistogram->SetPassedEvents( binNumber, thresholdEntryPair.second.eventsOn() );
 	}
 //	// Work out what bin width I need for the given number of entries so that the range
 //	// runs from 0 to 1.
@@ -164,6 +234,37 @@ std::unique_ptr<TEfficiency> cbcanalyser::SCurve::createHistogram( const std::st
 //        pNewHistogram->SetDirectory(nullptr);
 
 	return pNewHistogram;
+}
+
+std::unique_ptr<TF1> cbcanalyser::SCurve::fit() const
+{
+	std::unique_ptr<TEfficiency> pHistogram=createHistogram( "efficiencyForFit" );
+	// Need to figure out the minimum and maximum for the fit by
+	// examining the low and high edges of the TEfficiency.
+	float lowEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge(1);
+	// To get the high edge need to check low edge of the overflow bin
+	float highEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge( pHistogram->GetPassedHistogram()->GetNbinsX()+1 );
+
+	std::unique_ptr<TF1> pFitFunction( new TF1( "efficiencyFitFunction", "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", lowEdge, highEdge ) );
+	pFitFunction->SetParameters( 1, 1.1, (lowEdge+highEdge)/2 ); // Set initial parameters
+	pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
+
+	// When fitting minuit prints loads of crap to the screen. To stop this I'll
+	// temporarily redirect standard output. I read somewhere that it should be
+	// possible to supply the "Q" option to disable output, but that doesn't seem
+	// to work. Maybe because it's a TEfficiency and not a TH1.
+	{
+		RedirectedPrintfSentry printfRedirector;
+		pHistogram->Fit( pFitFunction.get() );
+	}
+
+	return pFitFunction;
+}
+
+std::tuple<float,float,float> cbcanalyser::SCurve::fitParameters() const
+{
+	std::unique_ptr<TF1> pFitFunction=fit();
+	return std::tuple<float,float,float>( pFitFunction->GetParameter(0), pFitFunction->GetParameter(1), pFitFunction->GetParameter(2) );
 }
 
 void cbcanalyser::SCurve::storeFitParameters( const TF1& fittedFunction )
