@@ -172,7 +172,7 @@ def sendSoapStartCommand( host, port, configFilename ):
 	environmentVariables=xdglibEnvironmentVariables
 	environmentVariables["CMSSW_BASE"]=os.getenv("CMSSW_BASE")
 	environmentVariables["CMSSW_RELEASE_BASE"]=os.getenv("CMSSW_RELEASE_BASE")
-	environmentVariables["LD_LIBRARY_PATH"]=environmentVariables["CMSSW_BASE"]+"/lib/slc5_amd64_gcc462:"+environmentVariables["LD_LIBRARY_PATH"]
+	environmentVariables["LD_LIBRARY_PATH"]=environmentVariables["CMSSW_BASE"]+"/lib/slc5_amd64_gcc462:/opt/cactus/lib:"+environmentVariables["LD_LIBRARY_PATH"]
 	environmentVariables["PYTHONPATH"]="/usr/lib64/python2.4:"+environmentVariables["CMSSW_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/cfipython/slc5_amd64_gcc462"
 	
 	for key in environmentVariables:
