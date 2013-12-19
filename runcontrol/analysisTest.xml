@@ -71,7 +71,8 @@
 		<xc:Endpoint hostname="localhost" network="dhcalatcp" port="31805" protocol="atcp" service="i2o"/>
 		<xc:Application class="GlibSupervisor" id="30" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:GlibSupervisor" xsi:type="soapenc:Struct">
-				<UhalConfigFile xsi:type="xsd:string">file:///home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/xml/connections.xml </UhalConfigFile>
+				<UhalConfigFile xsi:type="xsd:string">file:///home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/runcontrol/connections.xml </UhalConfigFile>
+				<ParamHtmlFile xsi:type="xsd:string">file:///home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/config/supervisorAcqParam.html</ParamHtmlFile>
 				<BoardName xsi:type="xsd:string">board</BoardName>
 			</properties>
 		</xc:Application>
@@ -95,7 +96,9 @@
 		<xc:Endpoint hostname="localhost" network="dhcalatcp" port="31806" protocol="atcp" service="i2o"/>
 		<xc:Application class="GlibStreamer" id="200" instance="0" network="local">
 			<properties xmlns="urn:xdaq-application:GlibStreamer" xsi:type="soapenc:Struct">
-				<UhalConfigFile xsi:type="xsd:string">file:///home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/xml/connections.xml</UhalConfigFile>
+				<UhalConfigFile xsi:type="xsd:string">file:///home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/runcontrol/connections.xml</UhalConfigFile>
+				<ParamHtmlFile xsi:type="xsd:string">file:///home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/config/streamerAcqParam.html</ParamHtmlFile>
+				<ConditionHtmlFile xsi:type="xsd:string">file:///home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/config/conditionAcqParam.html</ConditionHtmlFile>
 				<BoardName xsi:type="xsd:string">board</BoardName>
 				<RUName xsi:type="xsd:string">rubuilder::ru::Application</RUName>
 				<RU xsi:type="xsd:integer">0</RU>
