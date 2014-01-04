@@ -315,9 +315,10 @@ class GlibProgram( XDAQTools.Program ) :
 			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "pt::atcp::PeerTransportATCP" )
 		
 	def configure( self, triggerRate=16, numberOfEvents=100, timeout=5.0 ) :
-		self.supervisor.configure(triggerRate)
-		self.streamer.configure(numberOfEvents)
+		#self.supervisor.configure(triggerRate)
+		#self.streamer.configure(numberOfEvents)
 		self.sendAllMatchingApplicationsCommand( "Configure", "GlibSupervisor" )
+		self.sendAllMatchingApplicationsCommand( "configure", "GlibStreamer" )
 		self.sendAllMatchingApplicationsCommand( "Configure", "TrackerManager" )
 		
 		if timeout>0:
