@@ -155,7 +155,7 @@ void cbcanalyser::SCurveEntry::restoreFromStream( std::istream& inputStream )
 //---------------------------- cbcanalyser::SCurve definitions ---------------------------------
 //----------------------------------------------------------------------------------------------
 
-cbcanalyser::SCurve::SCurve( size_t numberOfEntries )
+cbcanalyser::SCurve::SCurve()
 	: fit_maxEfficiency_(-1.), fit_standardDeviation_(-1), fit_mean_(-1)
 {
 }
