@@ -317,6 +317,36 @@ httpserver::HttpServer::Reply httpserver::HttpServer::Reply::stockReply( httpser
 	return reply;
 }
 
+void httpserver::HttpServer::splitURI( const std::string& URI, std::string& resource, std::vector< std::pair<std::string,std::string> >& parameters )
+{
+	size_t characterPosition=URI.find_first_of("?");
+	resource=URI.substr(0,characterPosition);
+	if( characterPosition!=std::string::npos )
+	{
+		std::string parameterString=URI.substr(characterPosition+1);
+		do
+		{
+			// Parameters are separated by an ampersand, so see if there are any of those
+			// in the string and analyse each parameter individually.
+			characterPosition=parameterString.find_first_of("&");
+			std::string currentParameterAndValue=parameterString.substr(0,characterPosition);
+			// If there are other parameters, strip off this one ready for the next loop
+			if( characterPosition!=std::string::npos ) parameterString=parameterString.substr(characterPosition+1);
+			else parameterString=""; // Set this so that the loop breaks
+
+			// See if the parameter has been given a value (split with a "="), or is just
+			// a parameter name.
+			characterPosition=currentParameterAndValue.find_first_of("=");
+			std::string parameter=currentParameterAndValue.substr(0,characterPosition);
+			std::string value;
+			if( characterPosition!=std::string::npos ) value=currentParameterAndValue.substr(characterPosition+1);
+			// Only add it if the parameter name is valid
+			if( !parameter.empty() ) parameters.push_back( std::make_pair( parameter, value ) );
+		}
+		while( !parameterString.empty() );
+	}
+}
+
 httpserver::HttpServer::HttpServer( IRequestHandler& requestHandler )
 	: pImple( new httpserver::HttpServerPrivateMembers(requestHandler) )
 {
@@ -361,6 +391,10 @@ void httpserver::HttpServer::stop()
 	}
 }
 
+void httpserver::HttpServer::blockUntilFinished()
+{
+	pImple->runThread_.join();
+}
 
 httpserver::HttpServerPrivateMembers::HttpServerPrivateMembers( httpserver::HttpServer::IRequestHandler& requestHandler )
 	: io_service_(),

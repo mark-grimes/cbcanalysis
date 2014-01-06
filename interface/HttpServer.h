@@ -96,6 +96,17 @@ namespace httpserver
 			virtual void handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply ) = 0;
 		};
 
+		/** @brief Utility function that will split a request URI into the resource and any parameters.
+		 *
+		 * Split the given string up by the standard delimeters "?", "&" and "=". Anything before the first "?" is
+		 * considered the resource name, and everything after parameters for the resource. The parameters are split
+		 * up by the "&" character, and can either be just names or names and values separated by "=".
+		 *
+		 * @param URI The string representing the URI, usually given by request.uri
+		 * @param resource    A string that will be filled with the name of the resource.
+		 * @param parameters  A vector that will be filled with std::pairs of the form [parameterName,parameterValue].
+		 */
+		static void splitURI( const std::string& URI, std::string& resource, std::vector< std::pair<std::string,std::string> >& parameters );
 	public:
 		HttpServer( IRequestHandler& requestHandler );
 		~HttpServer();
@@ -105,6 +116,9 @@ namespace httpserver
 
 		/// @brief Stops the server. Harmless to call if the server has already been stopped.
 		void stop();
+
+		/// @brief Blocks program execution until the server stops.
+		void blockUntilFinished();
 	private:
 		/// @brief Private members hidden behind a pimple, aka compiler firewall.
 		std::unique_ptr<class HttpServerPrivateMembers> pImple;

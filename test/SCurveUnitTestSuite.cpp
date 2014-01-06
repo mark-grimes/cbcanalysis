@@ -9,10 +9,10 @@
 class SCurveUnitTestSuite : public CPPUNIT_NS::TestFixture
 {
 	CPPUNIT_TEST_SUITE(SCurveUnitTestSuite);
-	CPPUNIT_TEST(testSaveAndRestore);
-	CPPUNIT_TEST(testCalculateBinning);
-	CPPUNIT_TEST(testTEfficiencyCreation);
-	CPPUNIT_TEST(testFitting);
+//	CPPUNIT_TEST(testSaveAndRestore);
+//	CPPUNIT_TEST(testCalculateBinning);
+//	CPPUNIT_TEST(testTEfficiencyCreation);
+//	CPPUNIT_TEST(testFitting);
 	CPPUNIT_TEST_SUITE_END();
 
 protected:

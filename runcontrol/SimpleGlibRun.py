@@ -1,14 +1,16 @@
 """
-Extensions to XDAQTools specific to projects running on the GLIB
+Extensions to XDAQTools specific to projects running on the GLIB. This script is intended to
+use a simple XDAQ setup with just the GlibStreamer and GlibSupervisor. These will be configured
+to dump a temporary file and the standaloneCBCAnalyser program will be instructed to analyse it.
+
+At the moment standaloneCBCAnalyser is not started automatically, so it has to be started externally.
 
 Author Mark Grimes (mark.grimes@bristol.ac.uk)
-Date 29/Aug/2013
+Date 06/Jan/2014
 """
 
-import XDAQTools
-import time
-import math
-import os
+
+import XDAQTools, time, math, httplib, urllib
 
 class I2cRegister :
 	"""
@@ -76,7 +78,6 @@ class I2cChip :
 			if register.name[0:7]=='Channel' :register.writeToFile(file)
 		file.close()
 
-
 class GlibSupervisorApplication( XDAQTools.Application ) :
 	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterFilename="/home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/config/CBCv1_i2cSlaveAddrTable.txt" ) :
 		# Because there's a chance I might reassign the class of a base Application instance to this
@@ -90,10 +91,11 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		self.parameters = {
 			'user_wb_ttc_fmc_regs_pc_commands_TRIGGER_SEL':'off',  # turn off triggering from TTC
 			'user_wb_ttc_fmc_regs_pc_commands_INT_TRIGGER_FREQ':4, # 4 corresponds to 16Hz. Look on the webconfig to see the other values
-			'user_wb_ttc_fmc_regs_pc_commands2_FE0_masked':'on',
-			'user_wb_ttc_fmc_regs_pc_commands2_FE1_masked':'on',
+			'user_wb_ttc_fmc_regs_pc_commands2_FE0_masked':'off',
+			'user_wb_ttc_fmc_regs_pc_commands2_FE1_masked':'off',
 			'user_wb_ttc_fmc_regs_pc_commands_ACQ_MODE':'on',      # Continuous storage
 			'user_wb_ttc_fmc_regs_pc_commands_CBC_DATA_GENE':'on', # External data
+			'user_wb_ttc_fmc_regs_pc_commands2_negative_logic_CBC':'on'
 		}
 		self.saveParametersResource = "/urn:xdaq-application:lid="+str(self.id)+"/saveParameters"
 		# See what I2C registers there are
@@ -162,8 +164,9 @@ class GlibStreamerApplication( XDAQTools.Application ) :
 		if not hasattr( self, "host" ) : super(GlibStreamerApplication,self).__init__( host, port, className, instance )
 		# Now do the stuff specific to this subclass
 		self.parameters = {
-			'sharedMem':'on',    # pass the data to the RU
-			'memToFile':'off',   # don't dump to a file
+			'destination':'/tmp/scriptedRun.dat',
+			'sharedMem':'off',    # pass the data to the RU
+			'memToFile':'on',   # don't dump to a file
 			'nbAcq':100, # The number of events to take. 100 is an arbitrary testing value.
 			'acqMode':1, # The data format. 1 means "Full debug"; 3 means "Old format"
 			'zeroSuppressed':'off'
@@ -227,12 +230,10 @@ class GlibStreamerApplication( XDAQTools.Application ) :
 				return "Running"
 			else: return "<unknown>"
 		except: return "<unknown>"
-		
-		
 
-class GlibProgram( XDAQTools.Program ) :
+class SimpleGlibProgram( XDAQTools.Program ) :
 	def __init__( self, xdaqConfigFilename ) :
-		super(GlibProgram,self).__init__( xdaqConfigFilename )
+		super(SimpleGlibProgram,self).__init__( xdaqConfigFilename )
 		self._extendStreamerAndSupervisor()
 		
 	def _extendStreamerAndSupervisor( self ) :
@@ -254,7 +255,7 @@ class GlibProgram( XDAQTools.Program ) :
 	def reloadXDAQConfig( self ) :
 		del self.streamer
 		del self.supervisor
-		super(GlibProgram,self).reloadXDAQConfig()
+		super(SimpleGlibProgram,self).reloadXDAQConfig()
 		self._extendStreamerAndSupervisor()
 		
 	def initialise( self, triggerRate=16, numberOfEvents=100, timeout=5.0 ) :
@@ -263,43 +264,10 @@ class GlibProgram( XDAQTools.Program ) :
 		until all the applications have reached the required state, or until "timeout"
 		seconds have passed.
 		"""
-		self.sendAllMatchingApplicationsCommand( "Initialise", "TrackerManager" )
-		self.sendAllMatchingApplicationsCommand( "Configure", "pt::atcp::PeerTransportATCP" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "pt::atcp::PeerTransportATCP" )
-						
-		self.sendAllMatchingApplicationsCommand( "Configure", "rubuilder::evm::Application" )
-		self.sendAllMatchingApplicationsCommand( "Configure", "rubuilder::ru::Application" )
-		self.sendAllMatchingApplicationsCommand( "Configure", "rubuilder::bu::Application" )
-		self.sendAllMatchingApplicationsCommand( "Configure", "evf::FUEventProcessor" )
-		self.sendAllMatchingApplicationsCommand( "Configure", "evf::FUResourceBroker" )
-		self.sendAllMatchingApplicationsCommand( "Configure", "StorageManager" )
 
-		self.sendAllMatchingApplicationsCommand( "Initialise", "GlibSupervisor" )
-
-
-		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
-		self.waitAllMatchingApplicationsForState( "Ready", timeout, "rubuilder::evm::Application" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::evm::Application" )
+		self.supervisor.sendCommand( "Initialise" )
+		if timeout>0 : self.supervisor.waitForState( "Halted", timeout )
 		
-		self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::ru::Application" )
-
-		self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::bu::Application" )
-
-		if timeout>0:
-			self.waitAllMatchingApplicationsForState( "Halted", timeout, "TrackerManager" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "GlibSupervisor" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-#			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
-#			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-#			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "evf::FUEventProcessor" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "evf::FUResourceBroker" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "StorageManager" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "pt::atcp::PeerTransportATCP" )
 		# Now that everything is initialised, I'll set the parameters of the GlibSupervisor and
 		# GlibStreamer to what I want to be the defaults. I'll set them here rather than at the
 		# start of configure(..) so that the user can go into the web interface and make additional
@@ -309,89 +277,81 @@ class GlibProgram( XDAQTools.Program ) :
 		self.supervisor.configure(triggerRate)
 		self.streamer.configure(numberOfEvents)
 
-		
 	def configure( self, timeout=5.0 ) :
-		#self.supervisor.configure(triggerRate)
-		#self.streamer.configure(numberOfEvents)
-		self.sendAllMatchingApplicationsCommand( "Configure", "GlibSupervisor" )
-		self.sendAllMatchingApplicationsCommand( "configure", "GlibStreamer" )
-		self.sendAllMatchingApplicationsCommand( "Configure", "TrackerManager" )
+		self.supervisor.sendCommand( "Configure" )
+		self.streamer.sendCommand( "configure" )
 		
-		if timeout>0:
-			startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
-			self.waitAllMatchingApplicationsForState( "Configured", timeout, "TrackerManager" )
-			self.waitAllMatchingApplicationsForState( "Configured", timeout-(time.time()-startTime), "GlibSupervisor" )
-		
-		
-
-	def enable( self, timeout=5.0 ) :
-		self.sendAllMatchingApplicationsCommand( "Enable", "GlibSupervisor" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "TrackerManager" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "evf::FUEventProcessor" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "evf::FUResourceBroker" )
-		self.sendAllMatchingApplicationsCommand( "start", "GlibStreamer" )
-#		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::ru::Application" )
-#		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::evm::Application" )
-#		self.sendAllMatchingApplicationsCommand( "Enable", "rubuilder::bu::Application" )
-		self.sendAllMatchingApplicationsCommand( "Enable", "StorageManager" )
-
-		if timeout>0:
-			startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout, "TrackerManager" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "GlibSupervisor" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "evf::FUEventProcessor" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "evf::FUResourceBroker" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-			self.waitAllMatchingApplicationsForState( "Enabled", timeout-(time.time()-startTime), "StorageManager" )
+		if timeout>0 : self.supervisor.waitForState( "Configured", timeout )
 		
 	def stop( self, timeout=5.0 ) :
-		self.sendAllMatchingApplicationsCommand( "stop", "GlibStreamer" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "GlibSupervisor" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "TrackerManager" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "rubuilder::ru::Application" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "rubuilder::evm::Application" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "rubuilder::bu::Application" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "evf::FUEventProcessor" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "evf::FUResourceBroker" )
-		self.sendAllMatchingApplicationsCommand( "Stop", "StorageManager" )
+		self.streamer.sendCommand( "stop" )
+		self.supervisor.sendCommand( "Stop" )
 
-		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
-		self.waitAllMatchingApplicationsForState( "PrePaused", timeout, "TrackerManager" )
-		self.sendAllMatchingApplicationsCommand( "PostStop", "TrackerManager" )
+		if timeout>0 : self.supervisor.waitForState( "Configured", timeout )
 
-		if timeout>0:
-			self.waitAllMatchingApplicationsForState( "Configured", timeout, "TrackerManager" )
-			self.waitAllMatchingApplicationsForState( "Configured", timeout-(time.time()-startTime), "GlibSupervisor" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "evf::FUEventProcessor" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "evf::FUResourceBroker" )
-			self.waitAllMatchingApplicationsForState( "Ready", timeout-(time.time()-startTime), "StorageManager" )
+	def enable( self, timeout=5.0 ) :
+		self.supervisor.sendCommand( "Enable" )
+		self.streamer.sendCommand( "start" )
+
+		if timeout>0 : self.supervisor.waitForState( "Enabled", timeout )
 
 	def halt( self, timeout=5.0 ) :
-		self.sendAllMatchingApplicationsCommand( "stop", "GlibStreamer" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "GlibSupervisor" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "TrackerManager" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "rubuilder::ru::Application" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "rubuilder::evm::Application" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "rubuilder::bu::Application" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "evf::FUEventProcessor" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "evf::FUResourceBroker" )
-		self.sendAllMatchingApplicationsCommand( "Halt", "StorageManager" )
+		self.supervisor.sendCommand( "Halt" )
+		self.streamer.sendCommand( "halt" )
 
-		startTime=time.time() # Since they don't run concurrently, I need to subtract previous waits
-		self.waitAllMatchingApplicationsForState( "PrePaused", timeout, "TrackerManager" )
-		self.sendAllMatchingApplicationsCommand( "PostHalt", "TrackerManager" )
+		if timeout>0 : self.supervisor.waitForState( "Halted", timeout )
 
-		if timeout>0:
-			self.waitAllMatchingApplicationsForState( "Halted", timeout, "TrackerManager" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "GlibSupervisor" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "evf::FUEventProcessor" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "evf::FUResourceBroker" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "rubuilder::evm::Application" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "rubuilder::ru::Application" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "rubuilder::bu::Application" )
-			self.waitAllMatchingApplicationsForState( "Halted", timeout-(time.time()-startTime), "StorageManager" )
+	def pause( self, timeout=5.0 ) :
+		self.streamer.sendCommand( "stop" )
+
+	def play( self, timeout=5.0 ) :
+		self.streamer.sendCommand( "start" )
+
+class AnalyserControl :
+	"""
+	Class to interact with the C++ analysis program. This tells the program what to do by sending it
+	HTTP requests.
+	"""
+	def __init__ ( self, host, port ):
+		self.connection=httplib.HTTPConnection( host+":"+str(port) )
+		# Make sure the connection is closed, because all the other methods assume
+		# it's in that state. Presumably the connection will have failed at that
+		# stage anyway.
+		self.connection.close()
+
+	def httpRequest( self, requestType, resource, parameters={}, storeMessage=True ) :
+		"""
+		Send an http request to the application to the resource specified, with
+		optional parameters specified as a dictionary. "requestType" is the http
+		type, e.g. "GET" or "POST".
+		"""
+		try :
+			self.connection.connect()
+			# I copied this from an example on stack overflow
+			headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
+			print "parameters=", parameters
+			self.connection.request( requestType, urllib.quote(resource), urllib.urlencode(parameters), headers )
+			response = self.connection.getresponse()
+			if storeMessage:
+				# I need to "read" the response message before the connection gets closed.
+				# I'll store the message in a custom member of the response class that gets
+				# returned to the user.
+				response.fullMessage=response.read()
+			self.connection.close()
+			return response
+		except :
+			# Make sure the connection is closed before leaving this method, no
+			# matter what the circumstances are. Otherwise the connection might
+			# block next time I try to use it
+			self.connection.close()
+			# It's now okay to throw the original exception
+			raise
+
+	def analyseFile( self, filename ) :
+		self.httpRequest( "GET", "/analyseFile", { "filename" : filename }, False )
+
+	def saveHistograms( self, threshold ) :
+		self.httpRequest( "GET", "/saveHistograms", { "filename" : filename }, False )
+
+	def setThreshold( self, threshold ) :
+		self.httpRequest( "GET", "/setThreshold?", { "value" : str(threshold) }, False )

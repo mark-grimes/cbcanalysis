@@ -113,8 +113,7 @@ namespace cbcanalyser
 	class SCurve
 	{
 	public:
-		/** @brief Constructor that specifies how many bins the SCurve will have. */
-		SCurve( size_t numberOfEntries=256 );
+		SCurve();
 		bool operator==( const SCurve& otherSCurve ) const;
 		bool operator!=( const SCurve& otherSCurve ) const;
 

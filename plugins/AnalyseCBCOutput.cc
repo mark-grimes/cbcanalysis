@@ -11,7 +11,7 @@
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
 #include <FWCore/MessageService/interface/MessageLogger.h>
 #include "XtalDAQ/OnlineCBCAnalyser/interface/stringManipulationTools.h"
-#include "XtalDAQ/OnlineCBCAnalyser/interface/CBCChannelUnpacker.h"
+#include "XtalDAQ/OnlineCBCAnalyser/interface/CBC2ChannelUnpacker.h"
 #include "TMath.h"
 
 
@@ -179,9 +179,12 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 				continue;
 			}
 
-			//std::cout << "FEDRawData at fedIndex " << std::dec << fedIndex << " has size " << fedData.size() << std::endl;
+			if( debug_ ) std::cout << "FEDRawData at fedIndex " << std::dec << fedIndex << " has size " << fedData.size() << std::endl;
 			try
 			{
+				{
+					cbcanalyser::CBC2ChannelUnpacker unpacker(fedData);
+				}
 				sistrip::FEDBuffer myBuffer(fedData.data(),fedData.size());
 				//myBuffer.print( std::cout );
 
@@ -189,17 +192,21 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 				{
 					if( !myBuffer.fePresent(feIndex) ) continue;
 
+					if( debug_ ) std::cout << "FE " << feIndex << " is present" << std::endl;
+
 					for ( uint16_t channelInFe = 0; channelInFe < sistrip::FEDCH_PER_FEUNIT; ++channelInFe )
 					{
 						const uint16_t channelIndex=feIndex*sistrip::FEDCH_PER_FEUNIT+channelInFe;
 						const sistrip::FEDChannel& channel=myBuffer.channel(channelIndex);
 
-						cbcanalyser::CBCChannelUnpacker unpacker(channel);
+						cbcanalyser::CBC2ChannelUnpacker unpacker(channel);
 						if( !unpacker.hasData() ) continue;
 
 						cbcanalyser::FedChannelSCurves& fedChannelSCurves=detectorSCurves_.getFedChannelSCurves( fedIndex, channelIndex );
 
 						const std::vector<bool>& hits=unpacker.hits();
+
+						if( debug_ ) std::cout << "Channel " << channelIndex << " has " << hits.size() << " hits: ";
 
 						for( size_t stripNumber=0; stripNumber<hits.size(); ++stripNumber )
 						{
@@ -213,8 +220,16 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 							if( hits[stripNumber]==true ) ++sCurveEntry.eventsOn();
 							else ++sCurveEntry.eventsOff();
 
+							if( debug_ )
+							{
+								if( hits[stripNumber]==true ) std::cout << "1";
+								else std::cout << ".";
+							}
+
 							if( pSCurveEntryToMonitorForDQM_==nullptr ) pSCurveEntryToMonitorForDQM_=&sCurveEntry;
 						}
+
+						if( debug_ ) std::cout << '\n';
 
 					} // end of loop over FED channels
 				}
@@ -227,7 +242,7 @@ void cbcanalyser::AnalyseCBCOutput::analyze( const edm::Event& event, const edm:
 		} // end of "if FED has data"
 	} // end of loop over FEDs
 
-	if( debug_ ) dumpSCurveToStream( std::cout );
+	//if( debug_ ) dumpSCurveToStream( std::cout );
 }
 
 void cbcanalyser::AnalyseCBCOutput::endJob()

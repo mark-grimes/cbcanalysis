@@ -1,4 +1,4 @@
-<?xml-stylesheet type="text/xsl" href="cbcdaqConfig.xsl"?>
+<?xml-stylesheet type="text/xsl" href="cbcdaqConfig.xsl" encoding="UTF-8"?>
 <xc:Partition xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xc="http://xdaq.web.cern.ch/xdaq/xsd/2004/XMLConfiguration-30"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<i2o:protocol xmlns:i2o="http://xdaq.web.cern.ch/xdaq/xsd/2004/I2OConfiguration-30">
@@ -31,6 +31,7 @@
 				<nbTriggers xsi:type="xsd:unsignedInt">500</nbTriggers>
 				<enableL1Info xsi:type="xsd:boolean">false</enableL1Info>
 				<sendL1FlashList xsi:type="xsd:boolean">false</sendL1FlashList>
+				<drainingTimeOutSec xsi:type="xsd:unsignedInt">15</drainingTimeOutSec>
 				<!--workLoopName xsi:type="xsd:string">BU/EVM/RU</workLoopName-->
 				<!--taClass xsi:type="xsd:string">TrackerManager</taClass-->
 				<!--taInstance xsi:type="xsd:unsignedInt">0</taInstance-->
@@ -224,3 +225,5 @@
 		<xc:Module>/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/libEventFilterStorageManager.so</xc:Module>
 	</xc:Context>
 </xc:Partition>
+
+
