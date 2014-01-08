@@ -343,18 +343,26 @@ class Application(object) :
 		optional parameters specified as a dictionary. "requestType" is the http
 		type, e.g. "GET" or "POST".
 		"""
-		self.connection.connect()
-		# I copied this from an example on stack overflow
-		headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
-		self.connection.request( requestType, urllib.quote(resource), urllib.urlencode(parameters), headers )
-		response = self.connection.getresponse()
-		if storeMessage:
-			# I need to "read" the response message before the connection gets closed.
-			# I'll store the message in a custom member of the response class that gets
-			# returned to the user.
-			response.fullMessage=response.read()
-		self.connection.close()
-		return response
+		try :
+			self.connection.connect()
+			# I copied this from an example on stack overflow
+			headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
+			self.connection.request( requestType, urllib.quote(resource), urllib.urlencode(parameters), headers )
+			response = self.connection.getresponse()
+			if storeMessage:
+				# I need to "read" the response message before the connection gets closed.
+				# I'll store the message in a custom member of the response class that gets
+				# returned to the user.
+				response.fullMessage=response.read()
+			self.connection.close()
+			return response
+		except :
+			# Make sure the connection is closed before leaving this method, no
+			# matter what the circumstances are. Otherwise the connection might
+			# block next time I try to use it
+			self.connection.close()
+			# It's now okay to throw the original exception
+			raise
 
 
 class Program(object) :

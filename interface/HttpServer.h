@@ -103,10 +103,24 @@ namespace httpserver
 		 * up by the "&" character, and can either be just names or names and values separated by "=".
 		 *
 		 * @param URI The string representing the URI, usually given by request.uri
-		 * @param resource    A string that will be filled with the name of the resource.
-		 * @param parameters  A vector that will be filled with std::pairs of the form [parameterName,parameterValue].
+		 * @param resource      A string that will be filled with the name of the resource.
+		 * @param parameters    A vector that will be filled with std::pairs of the form [parameterName,parameterValue].
+		 * @param decodeSymbols If true, urlDecode(..) is called on any results.
 		 */
-		static void splitURI( const std::string& URI, std::string& resource, std::vector< std::pair<std::string,std::string> >& parameters );
+		static void splitURI( const std::string& URI, std::string& resource, std::vector< std::pair<std::string,std::string> >& parameters, bool decodeSymbols=true );
+
+		/** @brief Replaces some common url encodings with the ASCII
+		 *
+		 * Current replacements are below. I'll add to this list as I encounter problems.
+		 *
+		 * '+' and '%20' go to ' ' (space);
+		 * '%2B' goes to '+';
+		 * '%2F' goes to '/';
+		 * '%26' goes to '&';
+		 * '%3F' goes to '?';
+		 * '%25' goes to '%'
+		 */
+		static void urlDecode( std::string& url );
 	public:
 		HttpServer( IRequestHandler& requestHandler );
 		~HttpServer();

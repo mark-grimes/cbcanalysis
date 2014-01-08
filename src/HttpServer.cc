@@ -265,6 +265,20 @@ namespace // Use the unnamed namespace for things only used in this file
 		httpserver::HttpServer::Reply reply_;
 	};
 
+	/** Find and replace in strings. Copied from
+	 * "http://stackoverflow.com/questions/1494399/how-do-i-search-find-and-replace-in-a-standard-string"
+	 * I removed the templatedness (that's a word right?) because it made calling it with
+	 * differing types awkward.
+	 */
+	void inline findAndReplace(std::string& source, const std::string& find, const std::string& replace)
+	{
+		size_t fLen = find.size();
+		size_t rLen = replace.size();
+		for( size_t pos=0; (pos=source.find(find, pos))!=std::string::npos; pos+=rLen)
+		{
+			source.replace(pos, fLen, replace);
+		}
+	}
 
 } // unnamed namespace
 
@@ -317,10 +331,28 @@ httpserver::HttpServer::Reply httpserver::HttpServer::Reply::stockReply( httpser
 	return reply;
 }
 
-void httpserver::HttpServer::splitURI( const std::string& URI, std::string& resource, std::vector< std::pair<std::string,std::string> >& parameters )
+void httpserver::HttpServer::urlDecode( std::string& url )
+{
+	findAndReplace( url, "+", " " );
+	findAndReplace( url, "%20", " " );
+	findAndReplace( url, "%2B", "+" );
+	findAndReplace( url, "%2b", "+" );
+	findAndReplace( url, "%2F", "/" );
+	findAndReplace( url, "%2f", "/" );
+	findAndReplace( url, "%26", "&" );
+	findAndReplace( url, "%3F", "?" );
+	findAndReplace( url, "%3f", "?" );
+
+	// This one obviously has to go last
+	findAndReplace( url, "%25", "%" );
+}
+
+void httpserver::HttpServer::splitURI( const std::string& URI, std::string& resource, std::vector< std::pair<std::string,std::string> >& parameters, bool decodeSymbols )
 {
 	size_t characterPosition=URI.find_first_of("?");
 	resource=URI.substr(0,characterPosition);
+	if( decodeSymbols ) urlDecode(resource);
+
 	if( characterPosition!=std::string::npos )
 	{
 		std::string parameterString=URI.substr(characterPosition+1);
@@ -341,7 +373,15 @@ void httpserver::HttpServer::splitURI( const std::string& URI, std::string& reso
 			std::string value;
 			if( characterPosition!=std::string::npos ) value=currentParameterAndValue.substr(characterPosition+1);
 			// Only add it if the parameter name is valid
-			if( !parameter.empty() ) parameters.push_back( std::make_pair( parameter, value ) );
+			if( !parameter.empty() )
+			{
+				if( decodeSymbols )
+				{
+					urlDecode(parameter);
+					urlDecode(value);
+				}
+				parameters.push_back( std::make_pair( parameter, value ) );
+			}
 		}
 		while( !parameterString.empty() );
 	}

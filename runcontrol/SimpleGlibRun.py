@@ -3,6 +3,9 @@ Extensions to XDAQTools specific to projects running on the GLIB. This script is
 use a simple XDAQ setup with just the GlibStreamer and GlibSupervisor. These will be configured
 to dump a temporary file and the standaloneCBCAnalyser program will be instructed to analyse it.
 
+SimpleGlibProgram is class that controls the DAQ side of things, AnalyserControl is a class that
+communicates with the standaloneCBCAnalyser program and tells it what to do.
+
 At the moment standaloneCBCAnalyser is not started automatically, so it has to be started externally.
 
 Author Mark Grimes (mark.grimes@bristol.ac.uk)
@@ -10,7 +13,7 @@ Date 06/Jan/2014
 """
 
 
-import XDAQTools, time, math, httplib, urllib
+import XDAQTools, time, math, httplib, urllib, os
 
 class I2cRegister :
 	"""
@@ -19,13 +22,16 @@ class I2cRegister :
 	Author Mark Grimes (mark.grimes@bristol.ac.uk)
 	Date 08/Aug/2013
 	"""
-	def __init__(self,name,address,defaultValue,value) :
+	def __init__(self,name,page,address,defaultValue,value) :
 		self.name=name
+		self.page=int(page,0)
 		self.address=int(address,0)
 		self.defaultValue=int(defaultValue,0)
 		self.value=int(value,0)
+	def __repr__(self) :
+		return "<I2cRegister "+self.name+", "+hex(self.value)+">"
 	def writeToFile(self,file) :
-		file.write( self.name.ljust(20)+hex(self.address).ljust(8)+hex(self.defaultValue).ljust(8)+hex(self.value).ljust(8)+"\n" )
+		file.write( self.name.ljust(20)+hex(self.page).ljust(8)+hex(self.address).ljust(8)+hex(self.defaultValue).ljust(8)+hex(self.value).ljust(8)+"\n" )
 
 class I2cChip :
 	"""
@@ -41,7 +47,7 @@ class I2cChip :
 			for line in inputFile.readlines() :
 				if line[0]!='#' and line[0]!='*' and len(line)>0:
 					splitLine = line.split()
-					newRegister = I2cRegister( splitLine[0], splitLine[1], splitLine[2], splitLine[3] )
+					newRegister = I2cRegister( splitLine[0], splitLine[1], splitLine[2], splitLine[3], splitLine[4] )
 					self.addRegister( newRegister )
 
 
@@ -61,9 +67,15 @@ class I2cChip :
 		"""
 		Set the register with the name "Channel<channelNumber>" to the supplied value
 		"""
-		name = "Channel"+str(channelNumber)
-		register = self.getRegister(name)
-		if register==None : raise Exception( "Nothing known about channel "+str(channelNumber) )
+		# I don't know of the channel numbers are padded with zeros in the register
+		# name, so I'll try a few possibilities
+		possibleNames = [ "Channel%d"%(channelNumber), "Channel%02d"%(channelNumber), "Channel%03d"%(channelNumber) ]
+		for name in possibleNames :
+			register = self.getRegister(name)
+			if register == None : print name+" doesn't work"
+			else : name+" works"
+		if register==None :
+			raise Exception( "Nothing known about channel "+str(channelNumber) )
 		register.value=value
 
 	def writeToFilename( self, filename ) :
@@ -99,7 +111,10 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		}
 		self.saveParametersResource = "/urn:xdaq-application:lid="+str(self.id)+"/saveParameters"
 		# See what I2C registers there are
-		self.I2cChip = I2cChip(I2cRegisterFilename)
+		try :
+			self.I2cChip = I2cChip(I2cRegisterFilename)
+		except :
+			self.I2cChip = None
 		## Parameters and resource for reading an I2C address file
 		self.readI2cParameters = { 'i2CFile':I2cRegisterFilename }
 		self.readI2cResource = "/urn:xdaq-application:lid="+str(self.id)+"/i2cRead"
@@ -107,13 +122,21 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		# before hand with a read I2C request (not very RESTful but hey ho).
 		self.writeI2cParameters = {}
 		self.writeI2cResource = "/urn:xdaq-application:lid="+str(self.id)+"/i2cWriteFileValues"
+		
+		# These are flags to say which FMCs are connected. I don't actually have the code to set
+		# these properly yet, until then I'll hard code it.
+		# Note that for some reason, the GlibSupervisor calls FMC1 "FE1" and FMC2 "FE0"
+		self.isFMC1Connected = False
+		self.isFMC2Connected = True
 
 
-	def configure( self, triggerRate=None ) :
+	def setConfigureParameters( self, triggerRate=None ) :
 		"""
 		Configure the parameters on the GLIB with the values required for data taking.
 		You can optionally set a trigger rate in Hz which will be rounded down to the
 		nearest power of 2.
+		Note that these parameters aren't sent to the board unti the "Configure" state
+		transition.
 		"""
 		if triggerRate!=None :
 			triggerRateCode = int( math.log( triggerRate, 2 ) )
@@ -145,6 +168,10 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 	def sendI2cFile( self, fileName ) :
 		"""
 		Tells the supervisor to set the I2C values that are in the file with the given filename.
+		
+		The GlibSupervisor uses a hard coded filename within a user specified directory (e.g. "FE0CBC0.txt").
+		The directory can only be set with a call to i2cRead, so to perform a write the file is copied to
+		a temporary directory with 
 		"""
 		# The supervisor C++ code keeps the filename for a write in memory from the last
 		# read. Not very RESTful, but there you go. So I have to do a read to set the
@@ -155,6 +182,44 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		# Now that the read has set the filename, I can perform the write
 		response=self.httpRequest( "GET", self.writeI2cResource, self.writeI2cParameters, False )
 		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during write got the response "+str(response.status)+" - "+response.reason )
+	
+	def sendI2cFilesFromDirectory( self, directoryName ) :
+		"""
+		Asks the GlibSupervisor to send the files in the given directory to the CBC registers.
+		There can be up to four CBCs connected - 2 on each of 2 FEs depending on how many FMCs
+		are connected. The files in the directory have to be named "FE<number>CBC<number>.txt"
+		with the numbers being either 0 or 1. This is hard coded into the GlibSupervisor.
+		
+		This method will look at the contents of the directory and tell the GlibSupervisor to
+		load all the files that match the required filename style. So if you don't want to send
+		anything to a particular CBC don't have the file in the directory.
+		
+		The directory can only be specified in a "read" call, so a read is sent first to set the
+		directory name, then the write is sent.
+		"""
+		self.writeI2cParameters = {} # clear this of any previous entries
+		# Note that for some reason, the GlibSupervisor calls FMC1 "FE1" and FMC2 "FE0".
+		if self.isFMC1Connected :
+			if os.path.isfile( directoryName+"/FE1CBC0.txt" ) : self.writeI2cParameters["chkFE1CBC0"]="on"
+			if os.path.isfile( directoryName+"/FE1CBC1.txt" ) : self.writeI2cParameters["chkFE1CBC1"]="on"
+		if self.isFMC2Connected :
+			if os.path.isfile( directoryName+"/FE0CBC0.txt" ) : self.writeI2cParameters["chkFE0CBC0"]="on"
+			if os.path.isfile( directoryName+"/FE0CBC1.txt" ) : self.writeI2cParameters["chkFE0CBC1"]="on"
+		
+		if len( self.writeI2cParameters ) == 0 :
+			raise Exception( "GlibSupervisor.sendI2cFilesFromDirectory was given a directory name containing no files with the required names (e.g. \"FE0CBC0.txt\")" )
+
+		# First need to set the directory name in the GlibSupervisor. The only way to do this is to
+		# call a "read" first.
+		self.readI2cParameters['i2CFiles']=directoryName
+		response=self.httpRequest( "POST", self.readI2cResource, self.readI2cParameters, False )
+		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during read got the response "+str(response.status)+" - "+response.reason )
+
+		# Now the directory has been set I can tell GlibSupervisor to write the files in it
+		response=self.httpRequest( "GET", self.writeI2cResource, self.writeI2cParameters, True )
+		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during write got the response "+str(response.status)+" - "+response.reason )
+		return response
+
 
 class GlibStreamerApplication( XDAQTools.Application ) :
 	def __init__( self, host=None, port=None, className=None, instance=None ) :
@@ -197,27 +262,47 @@ class GlibStreamerApplication( XDAQTools.Application ) :
 			return streamerState
 		except: return "<unknown>"
 
-	def configure( self, numberOfEvents=None ) :
+	def setConfigureParameters( self, numberOfEvents=None ) :
+		"""
+		Sets the parameters ready for configuration. Note that these aren't sent to the board until
+		the "Configure" state transition.
+		"""
 		if numberOfEvents!=None : self.parameters['nbAcq']=numberOfEvents
 		response=self.httpRequest( "POST", self.saveParametersResource, self.parameters, False )
 		if response.status!= 200 : raise Exception( "GlibStreamer.configure got the response "+str(response.status)+" - "+response.reason )
-	
-	def startRecording( self ) :
-		response=self.httpRequest( "GET", self.forceStartResource, {}, False )
-		if response.status!= 200 : raise Exception( "GlibStreamer.startRecording got the response "+str(response.status)+" - "+response.reason )
 
+	def setOutputFilename( self, filename ) :
+		"""
+		This sets the filename of the DAQ output dump. Note that this change doesn't take effect
+		until the next "Configure" state change (I think).
+		"""
+		self.parameters['destination']=filename
+		response=self.httpRequest( "POST", self.saveParametersResource, self.parameters, False )
+		if response.status!= 200 : raise Exception( "GlibStreamer.setOutputFilename got the response "+str(response.status)+" - "+response.reason )
+
+	def setNumberOfEvents( self, numberOfEvents ) :
+		"""
+		The number of events that will be taken. Note that this change doesn't take effect
+		until the next "Configure" state change (I think).
+		"""
+		self.parameters['nbAcq']=numberOfEvents
+		response=self.httpRequest( "POST", self.saveParametersResource, self.parameters, False )
+		if response.status!= 200 : raise Exception( "GlibStreamer.setNumberOfEvents got the response "+str(response.status)+" - "+response.reason )
+		
 	def acquisitionState(self):
 		"""
-		Reports whether data is being taken or not.
+		Reports whether data is being taken or not. Note that this is different to the state the
+		GlibStreamer is in - it will still report "Running" after all events have been taken until
+		the next state change.
+		
+		The streamer doesn't have any soap commands to query to the state of the acquisition. The
+		only external way I can find to see if data is being recorded is to check the html status
+		page. There's not a specific status display, but depending on the information shown the
+		status can be inferred. This is likely to break with any change to the GlibStreamer.
 		"""
-		# The streamer doesn't have any soap commands to query to the state of the acquisition. The
-		# only external way I can find to see if data is being recorded is to check the html status
-		# page. There's not a specific status display, but depending on the information shown the
-		# status can be inferred.
 		try:
 			response=self.httpRequest( "GET", "/urn:xdaq-application:lid="+str(self.id) )
 		except:
-			self.connection.close() # Just in case something left it open and this method is being polled
 			return "<uncontactable>"		
 		try:			
 			# The only way I've figured out how to get this information is by using some
@@ -229,7 +314,8 @@ class GlibStreamerApplication( XDAQTools.Application ) :
 			elif streamerStateLine[8:49]=='<input type="submit" value="Start saving"':
 				return "Running"
 			else: return "<unknown>"
-		except: return "<unknown>"
+		except:
+			return "<unknown>"
 
 class SimpleGlibProgram( XDAQTools.Program ) :
 	def __init__( self, xdaqConfigFilename ) :
@@ -274,9 +360,12 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 		# changes on top. These settings aren't actually sent to the board until the streamer
 		# and supervisor are sent the "Configure" command, so the user can make additional changes
 		# and then call the configure(..) method.
-		self.supervisor.configure(triggerRate)
-		self.streamer.configure(numberOfEvents)
+		self.supervisor.setConfigureParameters(triggerRate)
+		self.streamer.setConfigureParameters(numberOfEvents)
 
+	def setOutputFilename( self, filename ) :
+		self.streamer.setOutputFilename( filename )
+		
 	def configure( self, timeout=5.0 ) :
 		self.supervisor.sendCommand( "Configure" )
 		self.streamer.sendCommand( "configure" )
@@ -319,26 +408,20 @@ class AnalyserControl :
 		# stage anyway.
 		self.connection.close()
 
-	def httpRequest( self, requestType, resource, parameters={}, storeMessage=True ) :
+	def httpGetRequest( self, resource, parameters={} ) :
 		"""
-		Send an http request to the application to the resource specified, with
-		optional parameters specified as a dictionary. "requestType" is the http
-		type, e.g. "GET" or "POST".
+		For some reason httplib doesn't send the parameters as part of the URL. Not sure if it's
+		supposed to but I thought it was. My mini http server running in C++ can't decode these
+		(at the moment) so I'll add the parameters to the URL by hand.
 		"""
-		try :
+		try:
 			self.connection.connect()
-			# I copied this from an example on stack overflow
 			headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
-			print "parameters=", parameters
-			self.connection.request( requestType, urllib.quote(resource), urllib.urlencode(parameters), headers )
+			self.connection.request( "GET", "/"+urllib.quote(resource)+"?"+urllib.urlencode(parameters), {}, headers )
 			response = self.connection.getresponse()
-			if storeMessage:
-				# I need to "read" the response message before the connection gets closed.
-				# I'll store the message in a custom member of the response class that gets
-				# returned to the user.
-				response.fullMessage=response.read()
 			self.connection.close()
-			return response
+			if response.status==200 : return True
+			else : return False
 		except :
 			# Make sure the connection is closed before leaving this method, no
 			# matter what the circumstances are. Otherwise the connection might
@@ -348,10 +431,10 @@ class AnalyserControl :
 			raise
 
 	def analyseFile( self, filename ) :
-		self.httpRequest( "GET", "/analyseFile", { "filename" : filename }, False )
+		self.httpGetRequest( "analyseFile", { "filename" : filename } )
 
 	def saveHistograms( self, threshold ) :
-		self.httpRequest( "GET", "/saveHistograms", { "filename" : filename }, False )
+		self.httpGetRequest( "saveHistograms", { "filename" : filename } )
 
 	def setThreshold( self, threshold ) :
-		self.httpRequest( "GET", "/setThreshold?", { "value" : str(threshold) }, False )
+		self.httpGetRequest( "setThreshold", { "value" : str(threshold) } )
