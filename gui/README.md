@@ -12,7 +12,9 @@ In Scientific Linux (e.g. the Strasbourg Glib virtual machine) this would look l
     sudo yum install httpd
     sudo cp $CMSSW_BASE/src/XtalDAQ/OnlineCBCAnalyser/gui/cbcTestStand.conf /etc/httpd/conf.d/
     sudo /sbin/service httpd start
-    
+
+The interface will then be available from a modern browser pointed at "<DAQ PC IP address>/cbcTestStand/clientTest.html". If running in the Strasbourg virtual machine, by default this would be "http://192.168.47.128/cbcTestStand/clientTest.html".
+
 Original goals were:
  1) Keep all work done in a python script backend so advanced users can create their own custom scripts.
  2) Be cross platform.
