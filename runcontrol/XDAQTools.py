@@ -1,7 +1,27 @@
+"""
+Tools to control XDAQ through python.
+
+It's probably important to point out the following concepts.
+
+Application - A single XDAQ module. This can be communicated with and queried for its state
+              etcetera, or told to change state.
+Context     - At a system level this is a single XDAQ process. This can have multiple applications
+              running inside it. When it is started all the applications start, and when
+              it is killed all the applications die too. Note that the individual applications
+              need to be told to change state individually though. A given DAQ setup may have
+              multiple contexts running on different machines, or running on the same machine
+              but on different ports.
+Program     - Basically encompasses everything. Your full XDAQ program, which has a list of
+              all the contexts that it comprises, which in turn have a list of applications
+              which they comprise. Has some utility methods to tell all contexts to do something,
+              or all applications to do something.
+
+@author Mark Grimes (mark.grimes@bristol.ac.uk) but originally influenced by xdglib
+"""
+
 import xml.etree.ElementTree as ElementTree
 import httplib
 import urllib
-#import xdglib
 import time
 import os
 import re
@@ -10,6 +30,13 @@ class ETElementExtension( ElementTree._ElementInterface ) :
 	"""
 	Extension to the ElementTree element interface that adds methods to get children with
 	a particular name, regardless of the xml namespace.
+	
+	Usage would be of the form:
+	@code
+	response=ElementTree.fromstring( <your xml> )
+	response.__class__=ETElementExtension
+	status=response.getchildnamed("Body").getchildnamed("getJobStatusResponse").getchildnamed("status").text
+	@endcode
 	
 	Author Mark Grimes (mark.grimes@bristol.ac.uk)
 	Date 28/Aug/2013
@@ -38,7 +65,8 @@ def sendSoapMessage( host, port, soapBody, className=None, instance=None, lid=10
 	No checking is provided that the soapBody provided is valid.
 	
 	If a className and instance are provided they are sent in the SOAPAction header. If either one is "None"
-	then the SOAPAction header is "urn:xdaq-application:lid=10". No idea why, but that's what it was in xdglib
+	then the lid is used (default is 10). If port is "None" then it defaults to 9999. This is because the
+	runcontrol application has lid (local ID) of 10 in the root XDAQ daemon that listens on port 9999. 
 
 	Author Mark Grimes (mark.grimes@bristol.ac.uk) but heavily copied from a file called xdglib.py
 	Date 16/Sep/2013
@@ -119,6 +147,8 @@ def getActiveJobIDs( host="127.0.0.1", port=9999 ) :
 	
 
 def sendSoapStartCommand( host, port, configFilename, forcedEnvironmentVariables={} ):
+	# These are the environment variables that must be provided. I'm pretty sure I can
+	# trim this down, but that's a job for a later date.
 	requiredEnvironmentVariableNames=['USER',
 		'XDAQ_ROOT',
 		'XDAQ_OS',
@@ -155,6 +185,8 @@ def sendSoapStartCommand( host, port, configFilename, forcedEnvironmentVariables
 		'POOL_STORAGESVC_DB_AGE_LIMIT']
 	environmentVariables={}
 
+	# Try and set all of the required variables from anything given by forcedEnvironmentVariables.
+	# If it's not present, try and set from the current environment. If that doesn't work, fail.
 	for variableName in requiredEnvironmentVariableNames:
 		try:
 			environmentVariables[variableName]=forcedEnvironmentVariables[variableName]
@@ -163,6 +195,13 @@ def sendSoapStartCommand( host, port, configFilename, forcedEnvironmentVariables
 
 			if variable==None: raise Exception("Environment variable "+variableName+" has not been set and is not available from the current environment")
 			environmentVariables[variableName]=variable
+	
+	# I should now have filled all of the required variables, but forcedEnvironmentVariables might contain
+	# something extra that the user wants added.
+	for variableName in forcedEnvironmentVariables:
+		# Doesn't matter if I overwrite anything from the previous step, because they will be the same.
+		environmentVariables[variableName]=forcedEnvironmentVariables[variableName]
+	
 	
 	# Now I have all of the environment variables figured out I can craft the message body
 	soapBody = '<xdaq:startXdaqExe execPath="'+environmentVariables['XDAQ_ROOT']+'/bin/xdaq.exe" user="'+environmentVariables["USER"]+'" argv="-p '+str(port)+' -l INFO" xmlns:xdaq="urn:xdaq-soap:3.0" >\n'
