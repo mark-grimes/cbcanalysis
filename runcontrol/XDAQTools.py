@@ -285,7 +285,7 @@ class Context(object) :
 			"POOL_OUTMSG_LEVEL":"4",
 			"POOL_STORAGESVC_DB_AGE_LIMIT":"10",
 			"XDAQ_ROOT":"/opt/xdaq",
-			"LD_LIBRARY_PATH":"/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib",
+			"LD_LIBRARY_PATH":"/opt/cactus/lib:/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib",
 			"XDAQ_DOCUMENT_ROOT":"/opt/xdaq/htdocs"}
 
 		self.applications = []
@@ -351,7 +351,29 @@ class Context(object) :
 		if self.jobid == -1 : raise Exception( "Couldn't find pid for "+str(self)+" in the list of active processes" )
 
 		
-	def startProcess(self) :
+	def startProcess( self, ignoreIfCurrentlyRunning=False, forceRestart=False, forceStart=False ) :
+		"""
+		Starts the XDAQ process for this context. If this representation thinks the process is already
+		running one of four things can happen depending on the values of ignoreIfCurrentlyRunning,
+		forceRestart and forceStart.
+		
+		(These go in order - the first one that matches is what happens)
+		
+		ignoreIfCurrentlyRunning is True - The function returns silently.
+		forceRestart is True             - An attempt is made to kill the currently running process before
+		                                   starting it again.
+		forceStart is True               - The process is started anyway. 
+		all parameters are False         - An exception is thrown. 
+		"""
+		if self.jobid != -1 :
+			if ignoreIfCurrentlyRunning :
+				return
+			elif forceRestart :
+				self.killProcess()
+				self.waitUntilProcessKilled()
+			else :
+				if not forceStart : raise Exception("Context "+str(self)+" appears to already be running. Try again with either forceRestart or forceStart set to True.")
+
 		self.jobid=-1
 		#response=ElementTree.fromstring( xdglib.sendConfigurationStartCommand( "http://"+self.host+":"+self.port, self.configFilename ) )
 		response=ElementTree.fromstring( sendSoapStartCommand( self.host, self.port, self.configFilename, self.forcedEnvironmentVariables ) )

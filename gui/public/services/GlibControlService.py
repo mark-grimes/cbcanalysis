@@ -18,6 +18,7 @@ class GlibControlService:
 	@date 11/Jan/2014
 	"""
 	def __init__(self):
+		self.boardAddress = "192.168.0.175"
 		self.program = SimpleGlibRun.SimpleGlibProgram( os.path.join( BasePath, "runcontrol", "GlibSuper.xml" ) )
 		for context in self.program.contexts :
 			context.forcedEnvironmentVariables = {'APVE_ROOT': '/opt/APVe',
@@ -70,6 +71,16 @@ class GlibControlService:
 		except Exception as error:
 			return "Exception: "+str(error)
 
+	def connectedCBCNames(self, msg):
+		"""
+		Returns the names of the connected CBCs.
+		"""
+		return self.program.supervisor.connectedCBCNames()
+	
+	def I2CRegisterValues(self, msg):
+		return self.program.supervisor.I2CRegisterValues()
+			
+		
 	def startProcesses(self, msg):
 		"""
 		Starts all of the XDAQ processes
@@ -89,6 +100,13 @@ class GlibControlService:
 			return None
 		except Exception as error:
 			return "Exception: "+str(error)
+	
+	def boardIsReachable( self, msg ):
+		"""
+		Pings the board to see if it is available
+		"""
+		# return true or false depending on whether the board can be pinged
+		return testStandTools.ping( self.boardAddress )
 
 
 if __name__ == '__main__':

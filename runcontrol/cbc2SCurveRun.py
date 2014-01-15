@@ -7,9 +7,9 @@ http://127.0.0.1:50000 in a webbrowser and make sure you can see the instruction
 @date 06/Jan/2014
 """
 
-import SimpleGlibRun
+import SimpleGlibRun, time
 
-daqProgram = SimpleGlibRun.SimpleGlibProgram( "/home/xtaldaq/trackerDAQ-3.2/CBCDAQ/GlibSupervisor/xml/GlibSuper.xml" )
+daqProgram = SimpleGlibRun.SimpleGlibProgram( "GlibSuper.xml" )
 analysisControl = SimpleGlibRun.AnalyserControl( "127.0.0.1", "50000" )
 
 
@@ -29,7 +29,19 @@ daqProgram.setOutputFilename( "/tmp/scurveOutputFile.dat" )
 
 daqProgram.configure()
 
-#
-# Now change the CBC I2C registers as required.
-#
+for threshold in range(100,151) :
+	print "Setting threshold to: "+str(threshold)
+	daqProgram.setAndSendI2c( { "VCth" : threshold } )
+	analysisControl.setThreshold( threshold )
 
+	daqProgram.play()
+	print "Taking data"
+	while daqProgram.streamer.acquisitionState()!="Stopped":
+		time.sleep(2)
+	
+	daqProgram.pause()
+	analysisControl.analyseFile( "/tmp/scurveOutputFile.dat" )
+
+analysisControl.saveHistograms( "/tmp/histograms.root" )
+daqProgram.killAllProcesses()
+daqProgram.waitUntilAllProcessesKilled();

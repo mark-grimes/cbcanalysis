@@ -239,6 +239,33 @@ std::unique_ptr<TEfficiency> cbcanalyser::SCurve::createHistogram( const std::st
 std::unique_ptr<TF1> cbcanalyser::SCurve::fit() const
 {
 	std::unique_ptr<TEfficiency> pHistogram=createHistogram( "efficiencyForFit" );
+
+	return fitHistogram( pHistogram );
+//	// Need to figure out the minimum and maximum for the fit by
+//	// examining the low and high edges of the TEfficiency.
+//	float lowEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge(1);
+//	// To get the high edge need to check low edge of the overflow bin
+//	float highEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge( pHistogram->GetPassedHistogram()->GetNbinsX()+1 );
+//
+//	std::unique_ptr<TF1> pFitFunction( new TF1( "efficiencyFitFunction", "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", lowEdge, highEdge ) );
+//	pFitFunction->SetParameters( 1, 1.1, (lowEdge+highEdge)/2 ); // Set initial parameters
+//	//pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
+//	pFitFunction->FixParameter(0,1); // Fix p0 to be between 1
+//
+//	// When fitting minuit prints loads of crap to the screen. To stop this I'll
+//	// temporarily redirect standard output. I read somewhere that it should be
+//	// possible to supply the "Q" option to disable output, but that doesn't seem
+//	// to work. Maybe because it's a TEfficiency and not a TH1.
+//	{
+//		//RedirectedPrintfSentry printfRedirector;
+//		pHistogram->Fit( pFitFunction.get() );
+//	}
+//
+//	return pFitFunction;
+}
+
+std::unique_ptr<TF1> cbcanalyser::SCurve::fitHistogram( const std::unique_ptr<TEfficiency>& pHistogram )
+{
 	// Need to figure out the minimum and maximum for the fit by
 	// examining the low and high edges of the TEfficiency.
 	float lowEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge(1);
@@ -247,16 +274,10 @@ std::unique_ptr<TF1> cbcanalyser::SCurve::fit() const
 
 	std::unique_ptr<TF1> pFitFunction( new TF1( "efficiencyFitFunction", "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", lowEdge, highEdge ) );
 	pFitFunction->SetParameters( 1, 1.1, (lowEdge+highEdge)/2 ); // Set initial parameters
-	pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
+	//pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
+	pFitFunction->FixParameter(0,1); // Fix p0 to be between 1
 
-	// When fitting minuit prints loads of crap to the screen. To stop this I'll
-	// temporarily redirect standard output. I read somewhere that it should be
-	// possible to supply the "Q" option to disable output, but that doesn't seem
-	// to work. Maybe because it's a TEfficiency and not a TH1.
-	{
-		//RedirectedPrintfSentry printfRedirector;
-		pHistogram->Fit( pFitFunction.get() );
-	}
+	pHistogram->Fit( pFitFunction.get() );
 
 	return pFitFunction;
 }
@@ -350,8 +371,9 @@ void cbcanalyser::FedChannelSCurves::createHistograms( TDirectory* pParentDirect
 		pNewHistogram->SetDirectory( pParentDirectory );
 
 		// Fit this S-Curve
-		cbcanalyser::FitSCurve fit( *pNewHistogram, stringConverter.str() );
-		std::unique_ptr<TF1> pNewFittedFunction=fit.performFit();
+		//cbcanalyser::FitSCurve fit( *pNewHistogram, stringConverter.str() );
+		//std::unique_ptr<TF1> pNewFittedFunction=fit.performFit();
+		std::unique_ptr<TF1> pNewFittedFunction=cbcanalyser::SCurve::fitHistogram( pNewHistogram );
 
 		// Set current directory and write fitted function
 		pParentDirectory->cd();
@@ -406,22 +428,22 @@ void cbcanalyser::FedChannelSCurves::restoreFromStream( std::istream& inputStrea
 //-------------------------- cbcanalyser::FitSCurve definitions --------------------------------
 //----------------------------------------------------------------------------------------------
 
-cbcanalyser::FitSCurve::FitSCurve( TEfficiency & sCurve, const std::string& name )
-        : sCurveToFit_(sCurve)
-{
-  fitFunction_ = new TF1(TString(name+"_fittedFunction"), "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", 0, 1 );
-}
-
-std::unique_ptr<TF1> cbcanalyser::FitSCurve::performFit() const
-{
-//   Define fit function and set initial parameters
-  std::unique_ptr<TF1> pFitFunction(fitFunction_);
-  pFitFunction->SetParameters(1., 1.1, 0.5); // Set initial parameters
-  pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
-  // Do the fit
-  sCurveToFit_.Fit(pFitFunction.get());
-  return pFitFunction;
-}
+//cbcanalyser::FitSCurve::FitSCurve( TEfficiency & sCurve, const std::string& name )
+//        : sCurveToFit_(sCurve)
+//{
+//  fitFunction_ = new TF1(TString(name+"_fittedFunction"), "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", 0, 1 );
+//}
+//
+//std::unique_ptr<TF1> cbcanalyser::FitSCurve::performFit() const
+//{
+////   Define fit function and set initial parameters
+//  std::unique_ptr<TF1> pFitFunction(fitFunction_);
+//  pFitFunction->SetParameters(1., 1.1, 0.5); // Set initial parameters
+//  pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
+//  // Do the fit
+//  sCurveToFit_.Fit(pFitFunction.get());
+//  return pFitFunction;
+//}
 
 //----------------------------------------------------------------------------------------------
 //-------------------------- cbcanalyser::FedSCurves definitions -------------------------------

@@ -149,6 +149,7 @@ namespace cbcanalyser
 		/// @brief Returns the number of entries possible. I.e. any call to getEntry should be in the range 0 to this value-1
 		size_t maxiumumEntries();
 
+		static std::unique_ptr<TF1> fitHistogram( const std::unique_ptr<TEfficiency>& pHistogram );
 	protected:
 		std::map<float,SCurveEntry> entries_;
 
@@ -166,27 +167,27 @@ namespace cbcanalyser
 
 	};
 
-	/** @brief Class to fit SCurve
-	 *
-         * @author Emyr Clement (mark.grimes@bristol.ac.uk)
-         * @date 17/Oct/2013
-	 */
-	class FitSCurve
-	{
-	public:
-	    FitSCurve( TEfficiency & sCurve, const std::string& name );
-
-            /** @brief Performs a fit of the fitFunction_ to sCurveToFit_
-             *
-             */
-            std::unique_ptr<TF1> performFit() const;
-
-	protected:
-            // The sCurve to fit
-            TEfficiency & sCurveToFit_;
-            // The function to fit
-            TF1 *fitFunction_;
-	};
+//	/** @brief Class to fit SCurve
+//	 *
+//         * @author Emyr Clement (mark.grimes@bristol.ac.uk)
+//         * @date 17/Oct/2013
+//	 */
+//	class FitSCurve
+//	{
+//	public:
+//	    FitSCurve( TEfficiency & sCurve, const std::string& name );
+//
+//            /** @brief Performs a fit of the fitFunction_ to sCurveToFit_
+//             *
+//             */
+//            std::unique_ptr<TF1> performFit() const;
+//
+//	protected:
+//            // The sCurve to fit
+//            TEfficiency & sCurveToFit_;
+//            // The function to fit
+//            TF1 *fitFunction_;
+//	};
 
 	/** @brief Convenience class to store all the s-curves for a FED channel.
 	 *

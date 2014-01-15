@@ -41,15 +41,26 @@ class I2cChip :
 	"""
 	def __init__( self, filename=None ) :
 		self.registers=[]
-		
-		if filename!=None :
-			inputFile = open(filename,'r')
-			for line in inputFile.readlines() :
-				if line[0]!='#' and line[0]!='*' and len(line)>0:
-					splitLine = line.split()
-					newRegister = I2cRegister( splitLine[0], splitLine[1], splitLine[2], splitLine[3], splitLine[4] )
-					self.addRegister( newRegister )
+		if filename!=None : self.loadFromFile(filename)
 
+	def loadFromFile( self, filename ) :
+		"""
+		Loads information about register names, addresses and values from the provided text file.
+		Overwrites any registers that were present before, but leaves ones not mentioned in the
+		text file alone.
+		"""
+		inputFile = open(filename,'r')
+		for line in inputFile.readlines() :
+			# Take everything before any comments (comments start with either '#' or '*'
+			# and continue until the end of the line).
+			lineNoComments=line.split('#')[0]
+			lineNoComments=lineNoComments.split('*')[0]
+			if len(lineNoComments)>0:
+				splitLine = lineNoComments.split()
+				if len(splitLine) != 5 : raise Exception("I2C file appears to be in an incorrect format. Line '"+line+"' should split into 5 columns")
+				newRegister = I2cRegister( splitLine[0], splitLine[1], splitLine[2], splitLine[3], splitLine[4] )
+				self.addRegister( newRegister )
+		
 
 	def addRegister(self,register) :
 		self.registers.append(register)
@@ -62,6 +73,19 @@ class I2cChip :
 			if register.name==registerName : return register
 		# If control got this far then no register was found
 		return None
+	
+	def getValues(self,registerNames=None) :
+		"""
+		Returns the value of each register in {"<name>": <value>, ...} tuple form. If an array of
+		registerNames is specified only those are returned.
+		"""
+		returnValue = {}
+		for register in self.registers :
+			addThisValue=True
+			if registerNames!=None :
+				if registerNames.count(register.name)==0 : addThisValue=False
+			if addThisValue : returnValue[register.name]=register.value
+		return returnValue
 	
 	def setChannelTrim( self, channelNumber, value ) :
 		"""
@@ -78,25 +102,41 @@ class I2cChip :
 			raise Exception( "Nothing known about channel "+str(channelNumber) )
 		register.value=value
 
-	def writeToFilename( self, filename ) :
-		file = open( filename, 'w' )
+	def writeToFilename( self, filename, registerNames=None ) :
+		"""
+		Writes all currently held values to the given filename. If registerNames is specified only those
+		registers are saved.
+		"""
+		file = open( filename, 'w+' )
 		for register in self.registers :
-			register.writeToFile(file)
+			shouldWrite=True
+			if registerNames != None :
+				if registerNames.count(register.name)==0 : shouldWrite=False
+			if shouldWrite : register.writeToFile(file)
 		file.close()
 
 	def writeTrimsToFilename( self, filename ) :
-		file = open( filename, 'w' )
+		file = open( filename, 'w+' )
 		for register in self.registers :
 			if register.name[0:7]=='Channel' :register.writeToFile(file)
 		file.close()
 
 class GlibSupervisorApplication( XDAQTools.Application ) :
-	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterFilename="/home/xtaldaq/trackerDAQ-3.1/CBCDAQ/GlibSupervisor/config/CBCv1_i2cSlaveAddrTable.txt" ) :
+	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterDirectory="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/runcontrol/i2c" ) :
 		# Because there's a chance I might reassign the class of a base Application instance to this
 		# class, I'll check and see if the base has been initialised before calling the super class
 		# constructor.
 		if not hasattr( self, "host" ) : super(GlibSupervisorApplication,self).__init__( host, port, className, instance )
 
+		# I2C parameters have to be saved to a file, and then the GlibSupervisor told to send the
+		# file to the board. This is the temporary directory I'll use to store the files.
+		self.tempDirectory="/tmp/cbcTestStandTempFiles/supervisor"
+		try :
+			os.makedirs( self.tempDirectory )
+		except Exception as error:
+			# Acceptable if the directory already exists, but any other error is a problem
+			if error.args[1] != 'File exists' : raise
+		
 		# Note that because of the way the GlibSupervisor is coded, if some of these are missing
 		# the supervisor will crash. So always make sure all of these are included in the POST
 		# request, even if they're already set at the required values.
@@ -110,13 +150,8 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 			'user_wb_ttc_fmc_regs_pc_commands2_negative_logic_CBC':'on'
 		}
 		self.saveParametersResource = "/urn:xdaq-application:lid="+str(self.id)+"/saveParameters"
-		# See what I2C registers there are
-		try :
-			self.I2cChip = I2cChip(I2cRegisterFilename)
-		except :
-			self.I2cChip = None
 		## Parameters and resource for reading an I2C address file
-		self.readI2cParameters = { 'i2CFile':I2cRegisterFilename }
+		self.readI2cParameters = { 'i2CFile':I2cRegisterDirectory+"/FE0CBC0.txt" }
 		self.readI2cResource = "/urn:xdaq-application:lid="+str(self.id)+"/i2cRead"
 		# The write I2C request takes no parameters, the filename has to be set
 		# before hand with a read I2C request (not very RESTful but hey ho).
@@ -128,6 +163,37 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		# Note that for some reason, the GlibSupervisor calls FMC1 "FE1" and FMC2 "FE0"
 		self.isFMC1Connected = False
 		self.isFMC2Connected = True
+
+		# See what I2C registers there are.
+		self.i2cChips = {}
+		if self.isFMC1Connected :
+			self.i2cChips['FE1CBC0'] = I2cChip()
+			self.i2cChips['FE1CBC1'] = I2cChip()
+		if self.isFMC2Connected :
+			self.i2cChips['FE0CBC0'] = I2cChip()
+			self.i2cChips['FE0CBC1'] = I2cChip()
+
+		# Try and load the default parameters
+		failedChipNames = []
+		for chipName in self.i2cChips.keys() :
+			try :
+				self.i2cChips[chipName].loadFromFile(I2cRegisterDirectory+'/'+chipName+'.txt')
+			except :
+				raise
+				failedChipNames.append(chipName)
+
+		if len(failedChipNames)!=0 : raise Exception( "Couldn't load values for chips: "+str(failedChipNames) )
+
+	def connectedCBCNames(self) :
+		return self.i2cChips.keys()
+	
+	def I2CRegisterValues( self, chipNames=None ) :
+		if chipNames==None : cbcNames=self.connectedCBCNames()
+		else : cbcNames=chipNames
+		returnValue = {}
+		for name in cbcNames :
+			returnValue[name]=self.i2cChips[name].getValues()
+		return returnValue
 
 
 	def setConfigureParameters( self, triggerRate=None ) :
@@ -151,37 +217,51 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		"""
 		Sets the trim for all channels. Note that this isn't written to the board until sendI2C is called
 		"""
-		for channel in range(0,128) :
+		for channel in range(0,254) :
 			self.setChannelTrim( channel, value )
 	
-	def setChannelTrim( self, channel, value ) :
+	def setChannelTrim( self, channel, value, chipNames=None ) :
 		"""
-		Sets the trim for the specified channel. Note that this isn't written to the board until sendI2C is called
+		Sets the trim for the specified channel. Note that this isn't written to the board until sendI2C is called.
+		By default acts on all CBCs, but this can be limited by specifying an array for 'chipNames'.
 		"""
-		self.I2cChip.setChannelTrim( channel, value )
+		if chipNames==None : chipNames=self.i2cChips.keys()
+		for name in chipNames :
+			self.i2cChips[name].setChannelTrim( channel, value )
 
-	def sendI2c( self, registerNames=None ) :
-		temporaryFilename = "/tmp/i2CFileToSendToBoard.txt"
-		self.I2cChip.writeTrimsToFilename( temporaryFilename )
-		self.sendI2cFile( temporaryFilename )
-
-	def sendI2cFile( self, fileName ) :
+	def setI2c( self, registerNameValueTuple, chipNames=None ) :
 		"""
-		Tells the supervisor to set the I2C values that are in the file with the given filename.
+		Sets the registers named by the keys in the tuple to the values in the tuple. By default
+		does so for all connected CBCs, but this can be limited by specifying an array for 'chipNames'.
 		
-		The GlibSupervisor uses a hard coded filename within a user specified directory (e.g. "FE0CBC0.txt").
-		The directory can only be set with a call to i2cRead, so to perform a write the file is copied to
-		a temporary directory with 
+		Note this doesn't set the register on the chip, only in the internal representation. Changes
+		will not be sent to the chip until sendI2c is called.
 		"""
-		# The supervisor C++ code keeps the filename for a write in memory from the last
-		# read. Not very RESTful, but there you go. So I have to do a read to set the
-		# filename before I perform a write.
-		self.readI2cParameters['i2CFile']=fileName
-		response=self.httpRequest( "POST", self.readI2cResource, self.readI2cParameters, False )
-		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during read got the response "+str(response.status)+" - "+response.reason )
-		# Now that the read has set the filename, I can perform the write
-		response=self.httpRequest( "GET", self.writeI2cResource, self.writeI2cParameters, False )
-		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during write got the response "+str(response.status)+" - "+response.reason )
+		if chipNames==None : chipNames=self.i2cChips.keys()
+		for name in chipNames :
+			chip = self.i2cChips[name]
+			for name in registerNameValueTuple :
+				register = chip.getRegister(name)
+				register.value = registerNameValueTuple[name]
+
+	def sendI2c( self, registerNames=None, chipNames=None ) :
+		"""
+		Sends all of the I2C registers to the chips by writing to temporary files and asking the
+		GlibSupervisor to send these files. By default does so for all connected CBCs, but this
+		can be limited by specifying an array for 'chipNames'.
+		"""
+		# First make sure there are no files left over from previous sends. Allow an error
+		# of 'No such file or directory' but throw any other exceptions.
+		for filename in ["FE0CBC0.txt","FE0CBC1.txt","FE1CBC0.txt","FE1CBC1.txt"] :
+			try :
+				os.remove( os.path.join(self.tempDirectory,filename) )
+			except Exception as error :
+				if error.args[1] != 'No such file or directory' : raise
+		
+		if chipNames==None : chipNames=self.i2cChips.keys()
+		for name in chipNames :
+			self.i2cChips[name].writeToFilename( os.path.join(self.tempDirectory,name+".txt"), registerNames )
+		self.sendI2cFilesFromDirectory( self.tempDirectory )
 	
 	def sendI2cFilesFromDirectory( self, directoryName ) :
 		"""
@@ -196,6 +276,9 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		
 		The directory can only be specified in a "read" call, so a read is sent first to set the
 		directory name, then the write is sent.
+		
+		Note that this method completely bypasses the I2C representation held internally by this
+		class.
 		"""
 		self.writeI2cParameters = {} # clear this of any previous entries
 		# Note that for some reason, the GlibSupervisor calls FMC1 "FE1" and FMC2 "FE0".
@@ -216,9 +299,8 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during read got the response "+str(response.status)+" - "+response.reason )
 
 		# Now the directory has been set I can tell GlibSupervisor to write the files in it
-		response=self.httpRequest( "GET", self.writeI2cResource, self.writeI2cParameters, True )
+		response=self.httpRequest( "POST", self.writeI2cResource, self.writeI2cParameters, True )
 		if response.status!= 200 : raise Exception( "GlibSupervisor.sendI2cFile during write got the response "+str(response.status)+" - "+response.reason )
-		return response
 
 
 class GlibStreamerApplication( XDAQTools.Application ) :
@@ -308,10 +390,10 @@ class GlibStreamerApplication( XDAQTools.Application ) :
 			# The only way I've figured out how to get this information is by using some
 			# hard coded knowledge what the webpage shows in different states.
 			streamerStateLine=response.fullMessage.splitlines()[34]
-			if streamerStateLine[8:28]=="Short pause duration":
+			if streamerStateLine[0:45]=="<table><tr><td><form action='saveHtmlValues'>":
 				# The table to modify parameters is showing which means data is not being taken
 				return "Stopped"
-			elif streamerStateLine[8:49]=='<input type="submit" value="Start saving"':
+			elif streamerStateLine[0:33]=='<form action="pauseAcquisition" >':
 				return "Running"
 			else: return "<unknown>"
 		except:
@@ -366,12 +448,19 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 	def setOutputFilename( self, filename ) :
 		self.streamer.setOutputFilename( filename )
 		
+	def setAndSendI2c( self, registerNameValueTuple, chipNames=None ) :
+		self.supervisor.setI2c( registerNameValueTuple, chipNames )
+		self.supervisor.sendI2c( registerNameValueTuple.keys(), chipNames )
+		
 	def configure( self, timeout=5.0 ) :
 		self.supervisor.sendCommand( "Configure" )
 		self.streamer.sendCommand( "configure" )
 		
 		if timeout>0 : self.supervisor.waitForState( "Configured", timeout )
-		
+		# Configuring the GlibSupervisor resets all I2C registers, so reset whatever
+		# my settings are.
+		self.supervisor.sendI2c()
+
 	def stop( self, timeout=5.0 ) :
 		self.streamer.sendCommand( "stop" )
 		self.supervisor.sendCommand( "Stop" )
@@ -433,7 +522,7 @@ class AnalyserControl :
 	def analyseFile( self, filename ) :
 		self.httpGetRequest( "analyseFile", { "filename" : filename } )
 
-	def saveHistograms( self, threshold ) :
+	def saveHistograms( self, filename ) :
 		self.httpGetRequest( "saveHistograms", { "filename" : filename } )
 
 	def setThreshold( self, threshold ) :
