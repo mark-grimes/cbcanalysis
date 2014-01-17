@@ -78,8 +78,12 @@ class GlibControlService:
 		return self.program.supervisor.connectedCBCNames()
 	
 	def I2CRegisterValues(self, msg):
-		return self.program.supervisor.I2CRegisterValues()
+		return self.program.supervisor.I2CRegisterValues(msg)
 			
+	def setI2CRegisterValues(self, msg):
+		chipNames = msg.keys()
+		registerNameValueTuple = msg[chipNames[0]]
+		return self.supervisor.setI2c( registerNameValueTuple, chipNames )
 		
 	def startProcesses(self, msg):
 		"""

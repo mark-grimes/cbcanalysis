@@ -13,6 +13,7 @@ from pyjamas.ui.DisclosurePanel import DisclosurePanel
 from pyjamas.ui.ListBox import ListBox
 from pyjamas.ui.Label import Label
 from pyjamas.ui.TextBox import TextBox
+from ErrorMessage import ErrorMessage
 
 class I2CPanel :
 	class ConnectedCBCListener :
@@ -33,10 +34,9 @@ class I2CPanel :
 				self.listBox.setEnabled(True)
 
 		def onRemoteError(self, code, message, request_info):
-			# I've no idea what to do if there's an error
-			pass
+			ErrorMessage( "Unable to contact server" )
 
-	class RegisterValueListener :
+	class ReadRegisterValueListener :
 		"""
 		A class to listen for the response to the call to get the register values
 		"""
@@ -44,18 +44,30 @@ class I2CPanel :
 			self.textBoxes=textBoxTuple
 			
 		def onRemoteResponse(self, response, request_info):
-#			for name in self.textBoxes :
-#				self.textBoxes[name].setText( str(response) )
 			# The call should have been for a specific chip, so there should only be an
 			# entry for one chip.
 			valuesTuple = response[response.keys()[0]]
 			# For this chip loop over all the register and set the text box values
 			for registerName in valuesTuple :
-				self.textBoxes[registerName].setText( "0x%02x"%valuesTuple[registerName] )
+				box=self.textBoxes[registerName]
+				box.setText( "0x%02x"%valuesTuple[registerName] )
+				box.setStyleAttribute( "background-color", "#FFFFFF" )
+				box.setEnabled( True )
 
 		def onRemoteError(self, code, message, request_info):
-			# I've no idea what to do if there's an error
+			ErrorMessage( "Unable to contact server" )
+
+	class DoNothingListener :
+		"""
+		A class to listen for the response to any calls where I don't care about the result.
+		Later on I'll put in a popup if there's a message.
+		"""
+		def onRemoteResponse(self, response, request_info):
+			# Don't actually want to do anything
 			pass
+
+		def onRemoteError(self, code, message, request_info):
+			ErrorMessage( "Unable to contact server" )
 
 	def __init__( self, rpcService ) :
 		# This is the service that will be used to communicate with the DAQ software
@@ -71,6 +83,7 @@ class I2CPanel :
 		self.cbcList=ListBox(MultipleSelect=False, VisibleItemCount=10)
 		self.cbcList.addItem( "waiting..." ) # Default text until I hear from the server what's connected
 		self.cbcList.setEnabled( False )
+		self.cbcList.addChangeListener(self)
 #		self.listener=I2CPanel.ConnectedCBCListener(self.cbcList)
 		self.rpcService.connectedCBCNames( None, I2CPanel.ConnectedCBCListener(self.cbcList) ) # Ask the server what's connected
 		self.mainPanel.add( self.cbcList )
@@ -91,11 +104,45 @@ class I2CPanel :
 		self.channelTrims.add( self.createRegisterPanel(["Channel001","Channel002","Channel003","Channel004","Channel005","Channel006","Channel007","Channel008","Channel009","Channel010","Channel011","Channel012","Channel013","Channel014","Channel015","Channel016","Channel017","Channel018","Channel019","Channel020","Channel021","Channel022","Channel023","Channel024","Channel025","Channel026","Channel027","Channel028","Channel029","Channel030","Channel031","Channel032","Channel033","Channel034","Channel035","Channel036","Channel037","Channel038","Channel039","Channel040","Channel041","Channel042","Channel043","Channel044","Channel045","Channel046","Channel047","Channel048","Channel049","Channel050","Channel051","Channel052","Channel053","Channel054","Channel055","Channel056","Channel057","Channel058","Channel059","Channel060","Channel061","Channel062","Channel063","Channel064","Channel065","Channel066","Channel067","Channel068","Channel069","Channel070","Channel071","Channel072","Channel073","Channel074","Channel075","Channel076","Channel077","Channel078","Channel079","Channel080","Channel081","Channel082","Channel083","Channel084","Channel085","Channel086","Channel087","Channel088","Channel089","Channel090","Channel091","Channel092","Channel093","Channel094","Channel095","Channel096","Channel097","Channel098","Channel099","Channel100","Channel101","Channel102","Channel103","Channel104","Channel105","Channel106","Channel107","Channel108","Channel109","Channel110","Channel111","Channel112","Channel113","Channel114","Channel115","Channel116","Channel117","Channel118","Channel119","Channel120","Channel121","Channel122","Channel123","Channel124","Channel125","Channel126","Channel127","Channel128","Channel129","Channel130","Channel131","Channel132","Channel133","Channel134","Channel135","Channel136","Channel137","Channel138","Channel139","Channel140","Channel141","Channel142","Channel143","Channel144","Channel145","Channel146","Channel147","Channel148","Channel149","Channel150","Channel151","Channel152","Channel153","Channel154","Channel155","Channel156","Channel157","Channel158","Channel159","Channel160","Channel161","Channel162","Channel163","Channel164","Channel165","Channel166","Channel167","Channel168","Channel169","Channel170","Channel171","Channel172","Channel173","Channel174","Channel175","Channel176","Channel177","Channel178","Channel179","Channel180","Channel181","Channel182","Channel183","Channel184","Channel185","Channel186","Channel187","Channel188","Channel189","Channel190","Channel191","Channel192","Channel193","Channel194","Channel195","Channel196","Channel197","Channel198","Channel199","Channel200","Channel201","Channel202","Channel203","Channel204","Channel205","Channel206","Channel207","Channel208","Channel209","Channel210","Channel211","Channel212","Channel213","Channel214","Channel215","Channel216","Channel217","Channel218","Channel219","Channel220","Channel221","Channel222","Channel223","Channel224","Channel225","Channel226","Channel227","Channel228","Channel229","Channel230","Channel231","Channel232","Channel233","Channel234","Channel235","Channel236","Channel237","Channel238","Channel239","Channel240","Channel241","Channel242","Channel243","Channel244","Channel245","Channel246","Channel247","Channel248","Channel249","Channel250","Channel251","Channel252","Channel253","Channel254","ChannelDummy"]) )
 		
 		# Set the text in the text boxes to the values in the registers
-		self.rpcService.I2CRegisterValues( 'FE0CBC0', I2CPanel.RegisterValueListener(self.i2cValueEntries) ) # Ask the server what the register values are
+#		self.rpcService.I2CRegisterValues( 'FE0CBC0', I2CPanel.ReadRegisterValueListener(self.i2cValueEntries) ) # Ask the server what the register values are
 
 	def getPanel( self ) :
 		return self.mainPanel
+	
+	def onChange( self, sender ) :
+		if sender == self.cbcList :
+			# Make a call to the RPC service to get the register values
+			self.rpcService.I2CRegisterValues( self.getActiveCBCs(), I2CPanel.ReadRegisterValueListener(self.i2cValueEntries) )
+		# Sender must be a text box. Need to format the input.
+		else :
+			try:
+				# For some reason the '0x' at the start of the string is causing exceptions,
+				# even though it works fine with interactive python. I'll take it off anyway.
+				string=sender.getText()
+				if( len(string)>=2 ) :
+					if string[0]=='0' and string[1]=='x' : string=string[2:]
+				value=int( string, 16 ) # convert as hex
+				# Cap values at 255
+				if value<0 : value=0
+				if value>255 : value=255
+				sender.setStyleAttribute( "background-color", "#FFFFFF" )
+				# Convert to the same format as everything else
+				sender.setText( "0x%02x"%value )
+				# Send the change to the RPC service
+				messageParameters = {}
+				for cbcName in self.getActiveCBCs() :
+					messageParameters[cbcName]={ sender.getTitle():value }
+				self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener() )
+			except ValueError:
+				sender.setStyleAttribute( "background-color", "#FF3333" )
 
+	def getActiveCBCs( self ) :
+		selectedCBCs = []
+		for i in range(self.cbcList.getItemCount()) :
+			if self.cbcList.isItemSelected(i):
+				selectedCBCs.append(self.cbcList.getItemText(i))
+		return selectedCBCs
+		
 	def createRegisterPanel( self, registerNames ) :
 		"""
 		Creates panels and buttons for everything given in registerNames, and returns the main panel.
@@ -108,12 +155,15 @@ class I2CPanel :
 			newLabels.append( Label(buttonName) )
 			newPanel.add( newLabels[-1] )
 			newTextBox=TextBox()
+			newTextBox.setEnabled( False )
 			#newTextBox.setKind("number")
 			#newTextBox.setMin(0)
 			#newTextBox.setMax(255)
 			newPanel.add(newTextBox)
+			newTextBox.setText("select chip...")
+			newTextBox.addChangeListener(self)
+			newTextBox.setTitle(buttonName) # This isn't displayed, but it's useful to have stored
 			self.i2cValueEntries[buttonName]=newTextBox
-			self.i2cValueEntries[buttonName].setText("BallsDeep")
 			flowPanel.add(newPanel)
 
 		# Set all of the widths of the labels to be the same, so that the boxes line up
