@@ -1,8 +1,10 @@
 #!/usr/local/bin/python
 
-import sys, os, inspect
+import sys, os, inspect, socket, time, signal
+from CGIHandlerFromStrings import CGIHandlerFromStrings
+
 directoryOfThisFile = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-BasePath = os.path.abspath(os.path.join(directoryOfThisFile, os.pardir, os.pardir, os.pardir))
+BasePath = os.path.abspath(os.path.join(directoryOfThisFile, os.pardir, os.pardir))
 sys.path.append( os.path.join( BasePath, "runcontrol" ) )
 import SimpleGlibRun
 
@@ -83,7 +85,7 @@ class GlibControlService:
 	def setI2CRegisterValues(self, msg):
 		chipNames = msg.keys()
 		registerNameValueTuple = msg[chipNames[0]]
-		return self.supervisor.setI2c( registerNameValueTuple, chipNames )
+		return self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
 		
 	def startProcesses(self, msg):
 		"""
@@ -113,12 +115,81 @@ class GlibControlService:
 		return testStandTools.ping( self.boardAddress )
 
 
-if __name__ == '__main__':
-	# this is if JSONService.py is run as a CGI
-	from jsonrpc.cgihandler import handleCGIRequest
-	handleCGIRequest(GlibControlService())
-else:
-	# this is if JSONService.py is run from mod_python:
-	# rename .htaccess.mod_python to .htaccess to activate,
-	# and restart Apache2
-	from jsonrpc.apacheServiceHandler import handler
+if __name__ == '__main__':	
+
+	readSocketPath="/tmp/python_unix_sockets_example"
+	writeSocketPath="/tmp/python_unix_sockets_response-"
+	
+	if os.path.exists( readSocketPath ):
+		os.remove( readSocketPath )
+	
+	#print "Opening socket..."
+	server = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
+	server.bind(readSocketPath)
+	
+	# Add a signal handler to remove the socket file if anyone sends a SIGTERM.
+	# Ideally I would also do this if anyone sends a SIGKILL but SIGKILL can't
+	# be caught.
+	def signalHandler( signum, frame ) :
+		server.close()
+		os.remove( readSocketPath )
+	signal.signal( signal.SIGTERM, signalHandler )
+	
+	try :
+		myservice=CGIHandlerFromStrings(GlibControlService(),messageDelimiter="\n")
+	
+		#print "Listening..."
+		while True:
+			
+
+			# First peek at the start of the message, i.e. look at it without removing it. I need to
+			# see what size the message is so that I can then request using a correct buffer size.
+			# The format I'm expecting is the process ID, then a space, then the message length, then
+			# another space, then the message. The message length given doesn't include the extra bits
+			# of information.
+			packetSize=1024 # The size of the chunks I receive on the pipe
+			datagram = server.recv( packetSize, socket.MSG_PEEK ) # Look but don't remove
+			firstSpacePosition=datagram.find(' ')
+			secondSpacePosition=datagram.find(' ',firstSpacePosition+1)
+			processID=datagram[0:firstSpacePosition]
+			dataLength=int(datagram[firstSpacePosition+1:secondSpacePosition])
+			messageLength=dataLength+secondSpacePosition+1
+			while packetSize < messageLength : packetSize=packetSize*2 # keep as a power of 2
+			# Now that I have the correct packet size, I can get the full message and remove
+			# it from the queue.
+			datagram = server.recv( packetSize )
+			message=datagram[secondSpacePosition+1:]
+
+			file=open('/tmp/serverDumpFile','a')
+			file.write("REQUEST was:'"+datagram+"'\n")
+			file.write("processID was:'"+processID+"'\n")
+			file.write("messageLength was:'"+str(messageLength)+"'\n")
+			#print "-" * 20
+			#print "'"+datagram+"'"
+			response=myservice.handle( message )
+			file.write("RESPONSE is:'"+response+"'\n")
+			file.flush()
+			#print "Message was '"+message+"'"
+			#print "Response is '"+str(response)+"'"
+			#print "Sending connection count to "+processID
+			try :
+				client = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
+				client.connect( writeSocketPath+processID )
+				# First send the size of the response, then a space, then the actual response
+				client.send( str(len(response))+' '+response )
+				client.close()
+				file.write('Respone has been written\n')
+			except Exception as error:
+				print "Exception: "+str(error)+str(error.args)
+
+			file.close()
+		
+		#print "-" * 20
+		#print "Shutting down..."
+		server.close()
+		os.remove( readSocketPath )
+	except :
+		server.close()
+		os.remove( readSocketPath )
+		raise
+	

@@ -129,7 +129,7 @@ class Client:
 # AJAX calls must come from the same server, only the path is given here
 class GlibControlService(JSONProxy):
 	def __init__(self):
-		JSONProxy.__init__(self, "services/GlibControlService.py", ["getStates","connectedCBCNames","I2CRegisterValues","setI2CRegisterValues","startProcesses","killProcesses","boardIsReachable"] )
+		JSONProxy.__init__(self, "services/GlibControlProxy.py", ["getStates","connectedCBCNames","I2CRegisterValues","setI2CRegisterValues","startProcesses","killProcesses","boardIsReachable"] )
 
 if __name__ == "__main__" :
 	app = Client()
