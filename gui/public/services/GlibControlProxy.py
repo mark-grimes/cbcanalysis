@@ -2,6 +2,7 @@
 
 
 if __name__ == '__main__':
+	logging=False
 	#	# this is if JSONService.py is run as a CGI
 	#	from jsonrpc.cgihandler import handleCGIRequest
 	#	handleCGIRequest(GlibControlService())
@@ -14,41 +15,37 @@ if __name__ == '__main__':
 	client = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
 	client.connect( "/tmp/python_unix_sockets_example" )
 	
-	processID=os.getpid()
+	listeningAddress="/tmp/python_unix_sockets_response-"+str(os.getpid())
 	response = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
-	response.bind("/tmp/python_unix_sockets_response-"+str(processID))
+	response.bind( listeningAddress )
 	
 	contLen=int(os.environ['CONTENT_LENGTH'])
 	data = sys.stdin.read(contLen)
-	data=str(processID)+" "+data
+	data=listeningAddress+"\n"+str(len(data))+"\n"+data
 	client.send(data)
 	
 	packetSize=1024 # The size of the chunks I receive on the pipe
+	datagram = response.recv( packetSize, socket.MSG_PEEK ) # Look but don't remove
+	firstNewlinePosition=datagram.find('\n')
+	dataLength=int(datagram[0:firstNewlinePosition])
+	messageLength=dataLength+firstNewlinePosition+1
+	while packetSize < messageLength : packetSize=packetSize*2 # keep as a power of 2
+	# Now that I have the correct packet size, I can get the full message and remove
+	# it from the queue.
 	datagram = response.recv( packetSize )
-	firstSpacePosition=datagram.find(' ')
-	messageLength=datagram[0:firstSpacePosition]
-	message=datagram[firstSpacePosition+1:]
-	file=open('/tmp/dumpFile','a')
-	file.write(message)
-	file.close()
+	message=datagram[firstNewlinePosition+1:]
+	if logging:
+		logFile=open('/tmp/proxyDumpFile.log','a')
+		logFile.write(message)
 
 	sys.stdout.write(message)
 
-	# The message could be longer than the amount I've got, so I need to work out
-	# how much is left.
-	messageLength-=( packetSize-firstSpacePosition )
-	while messageLength > 0 :
-		datagram = response.recv( packetSize )
-		file=open('/tmp/dumpFile','a')
-		file.write(datagram)
-		file.close()
-		sys.stdout.write(datagram)
-		messageLength-=packetSize
 
+	if logging: logFile.close()
 	
 	client.close()
 	response.close()
-	os.remove("/tmp/python_unix_sockets_response-"+str(processID))
+	os.remove(listeningAddress)
 
 else:
 	# this is if JSONService.py is run from mod_python:

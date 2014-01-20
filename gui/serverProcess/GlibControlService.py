@@ -117,25 +117,25 @@ class GlibControlService:
 
 if __name__ == '__main__':	
 
-	readSocketPath="/tmp/python_unix_sockets_example"
-	writeSocketPath="/tmp/python_unix_sockets_response-"
+	listeningAddress="/tmp/python_unix_sockets_example"
 	
-	if os.path.exists( readSocketPath ):
-		os.remove( readSocketPath )
+	if os.path.exists( listeningAddress ):
+		os.remove( listeningAddress )
 	
 	#print "Opening socket..."
 	server = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
-	server.bind(readSocketPath)
+	server.bind(listeningAddress)
 	
 	# Add a signal handler to remove the socket file if anyone sends a SIGTERM.
 	# Ideally I would also do this if anyone sends a SIGKILL but SIGKILL can't
 	# be caught.
 	def signalHandler( signum, frame ) :
 		server.close()
-		os.remove( readSocketPath )
+		os.remove( listeningAddress )
 	signal.signal( signal.SIGTERM, signalHandler )
 	
 	try :
+		logging=False
 		myservice=CGIHandlerFromStrings(GlibControlService(),messageDelimiter="\n")
 	
 		#print "Listening..."
@@ -149,47 +149,48 @@ if __name__ == '__main__':
 			# of information.
 			packetSize=1024 # The size of the chunks I receive on the pipe
 			datagram = server.recv( packetSize, socket.MSG_PEEK ) # Look but don't remove
-			firstSpacePosition=datagram.find(' ')
-			secondSpacePosition=datagram.find(' ',firstSpacePosition+1)
-			processID=datagram[0:firstSpacePosition]
-			dataLength=int(datagram[firstSpacePosition+1:secondSpacePosition])
-			messageLength=dataLength+secondSpacePosition+1
+			firstNewlinePosition=datagram.find('\n')
+			secondNewlinePosition=datagram.find('\n',firstNewlinePosition+1)
+			addressToReply=datagram[0:firstNewlinePosition]
+			dataLength=int(datagram[firstNewlinePosition+1:secondNewlinePosition])
+			messageLength=dataLength+secondNewlinePosition+1
 			while packetSize < messageLength : packetSize=packetSize*2 # keep as a power of 2
 			# Now that I have the correct packet size, I can get the full message and remove
 			# it from the queue.
 			datagram = server.recv( packetSize )
-			message=datagram[secondSpacePosition+1:]
+			message=datagram[secondNewlinePosition+1:]
 
-			file=open('/tmp/serverDumpFile','a')
-			file.write("REQUEST was:'"+datagram+"'\n")
-			file.write("processID was:'"+processID+"'\n")
-			file.write("messageLength was:'"+str(messageLength)+"'\n")
-			#print "-" * 20
-			#print "'"+datagram+"'"
+			# I should have the full RPC message, so I can pass it on to the service to work
+			# out what to do with it.
 			response=myservice.handle( message )
-			file.write("RESPONSE is:'"+response+"'\n")
-			file.flush()
-			#print "Message was '"+message+"'"
-			#print "Response is '"+str(response)+"'"
-			#print "Sending connection count to "+processID
+
+			if logging :
+				logFile=open('/tmp/serverDumpFile.log','a')
+				logFile.write("REQUEST was:'"+datagram+"'\n")
+				logFile.write("addressToReply was:'"+addressToReply+"'\n")
+				logFile.write("messageLength was:'"+str(messageLength)+"'\n")
+				logFile.write("RESPONSE is:'"+response+"'\n")
+				logFile.flush()
+				
 			try :
 				client = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
-				client.connect( writeSocketPath+processID )
+				client.connect( addressToReply )
 				# First send the size of the response, then a space, then the actual response
-				client.send( str(len(response))+' '+response )
+				client.send( str(len(response))+'\n'+response )
 				client.close()
-				file.write('Respone has been written\n')
+				if logging: logFile.write('Respone has been written\n')
 			except Exception as error:
+				if logging : logFile.write("Exception: "+str(error)+str(error.args))
 				print "Exception: "+str(error)+str(error.args)
 
-			file.close()
+			if logging : logFile.close()
 		
 		#print "-" * 20
 		#print "Shutting down..."
 		server.close()
-		os.remove( readSocketPath )
+		os.remove( listeningAddress )
 	except :
 		server.close()
-		os.remove( readSocketPath )
+		os.remove( listeningAddress )
 		raise
 	
