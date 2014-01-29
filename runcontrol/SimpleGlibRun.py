@@ -12,12 +12,13 @@ Author Mark Grimes (mark.grimes@bristol.ac.uk)
 Date 06/Jan/2014
 """
 
+import os, inspect
 # The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
 # this line gets the directory of this file. I then look three parents up to get the directory
 # of the CBCAnalysis installation.
 INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
 
-import XDAQTools, time, math, httplib, urllib, os, json, re
+import XDAQTools, time, math, httplib, urllib, json, re
 
 class I2cRegister :
 	"""
