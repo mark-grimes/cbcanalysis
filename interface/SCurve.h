@@ -1,5 +1,5 @@
-#ifndef XtalDAQ_OnlineCBCAnalyser_interface_SCurve_h
-#define XtalDAQ_OnlineCBCAnalyser_interface_SCurve_h
+#ifndef SLHCUpgradeTracker_CBCAnalysis_interface_SCurve_h
+#define SLHCUpgradeTracker_CBCAnalysis_interface_SCurve_h
 
 #include <vector>
 #include <map>

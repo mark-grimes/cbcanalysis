@@ -31,10 +31,12 @@
 import sys, os, inspect, socket, time, signal
 from CGIHandlerFromStrings import CGIHandlerFromStrings
 
-directoryOfThisFile = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-BasePath = os.path.abspath(os.path.join(directoryOfThisFile, os.pardir, os.pardir))
-sys.path.append( os.path.join( BasePath, "runcontrol" ) )
-sys.path.append('/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/runcontrol')
+# The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
+# this line gets the directory of this file. I then look three parents up to get the directory
+# of the CBCAnalysis installation.
+INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
+
+sys.path.append( os.path.join( INSTALLATION_PATH, "runcontrol" ) )
 from cbc2SCurveRun import cbc2ScurveRun
 import SimpleGlibRun
 
@@ -51,7 +53,7 @@ class GlibControlService:
 	"""
 	def __init__(self):
 		self.boardAddress = "192.168.0.175"
-		self.program = SimpleGlibRun.SimpleGlibProgram( os.path.join( BasePath, "runcontrol", "GlibSuper.xml" ) )
+		self.program = SimpleGlibRun.SimpleGlibProgram( os.path.join( INSTALLATION_PATH, "runcontrol", "GlibSuper.xml" ) )
 		self.cbc2SCurveRun = cbc2SCurveRun
 		for context in self.program.contexts :
 			context.forcedEnvironmentVariables = {'APVE_ROOT': '/opt/APVe',

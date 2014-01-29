@@ -1,8 +1,14 @@
+
+# The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
+# this line gets the directory of this file. I then look three parents up to get the directory
+# of the CBCAnalysis installation.
+INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
+
 import XDAQTools
 import os
 
 class GlibSupervisorApplication( XDAQTools.Application ) :
-	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterDirectory="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/runcontrol/i2c" ) :
+	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterDirectory=INSTALLATION_PATH+"/runcontrol/i2c" ) :
 		# Because there's a chance I might reassign the class of a base Application instance to this
 		# class, I'll check and see if the base has been initialised before calling the super class
 		# constructor.
@@ -130,9 +136,6 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 			self.parameters['user_wb_ttc_fmc_regs_pc_commands_INT_TRIGGER_FREQ']=triggerRateCode
 		response=self.httpRequest( "POST", self.saveParametersResource, self.parameters, False )
 		if response.status!= 200 : raise Exception( "GlibSupervisor.configure got the response "+str(response.status)+" - "+response.reason )
-		# I'll initialise with the I2C registers set to what is required to
-		# set the comparator from an external voltage.
-		#self.sendI2cFile( os.getenv("CMSSW_BASE")+"/src/XtalDAQ/OnlineCBCAnalyser/runcontrol/I2CValues_comparatorExternalVoltage.txt" )
 
 	def setAllChannelTrims( self, value ) :
 		"""

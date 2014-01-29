@@ -1,4 +1,4 @@
-#include "XtalDAQ/OnlineCBCAnalyser/plugins/AnalyseCBCOutput.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/plugins/AnalyseCBCOutput.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -10,8 +10,8 @@
 #include <FWCore/ServiceRegistry/interface/Service.h>
 #include <CommonTools/UtilAlgos/interface/TFileService.h>
 #include <FWCore/MessageService/interface/MessageLogger.h>
-#include "XtalDAQ/OnlineCBCAnalyser/interface/stringManipulationTools.h"
-#include "XtalDAQ/OnlineCBCAnalyser/interface/CBC2ChannelUnpacker.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/stringManipulationTools.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/CBC2ChannelUnpacker.h"
 #include "TMath.h"
 
 

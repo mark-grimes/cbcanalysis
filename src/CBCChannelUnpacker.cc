@@ -1,4 +1,4 @@
-#include "XtalDAQ/OnlineCBCAnalyser/interface/CBCChannelUnpacker.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/CBCChannelUnpacker.h"
 #include <EventFilter/SiStripRawToDigi/interface/SiStripFEDBuffer.h>
 
 cbcanalyser::CBCChannelUnpacker::CBCChannelUnpacker( const sistrip::FEDChannel& fedChannel )

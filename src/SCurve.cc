@@ -1,4 +1,4 @@
-#include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/SCurve.h"
 
 #include <cmath>
 #include <stdexcept>

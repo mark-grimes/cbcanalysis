@@ -26,9 +26,9 @@
 #include <sstream>
 #include <iomanip>
 
-#include "XtalDAQ/OnlineCBCAnalyser/interface/RawDataFileReader.h"
-#include "XtalDAQ/OnlineCBCAnalyser/interface/HttpServer.h"
-#include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/RawDataFileReader.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/HttpServer.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/SCurve.h"
 #include "TFile.h"
 
 // Use the unnamed namespace for things only used in this file

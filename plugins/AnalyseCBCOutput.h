@@ -1,12 +1,12 @@
-#ifndef XtalDAQ_OnlineCBCAnalyser_plugins_AnalyseCBCOutput_h
-#define XtalDAQ_OnlineCBCAnalyser_plugins_AnalyseCBCOutput_h
+#ifndef SLHCUpgradeTracker_CBCAnalysis_plugins_AnalyseCBCOutput_h
+#define SLHCUpgradeTracker_CBCAnalysis_plugins_AnalyseCBCOutput_h
 
 #include <fstream>
 #include <atomic>
 #include <FWCore/Framework/interface/Frameworkfwd.h>
 #include <FWCore/Framework/interface/EDAnalyzer.h>
-#include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
-#include "XtalDAQ/OnlineCBCAnalyser/interface/HttpServer.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/SCurve.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/HttpServer.h"
 
 //
 // Forward declarations

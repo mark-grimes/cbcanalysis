@@ -1,3 +1,3 @@
 <include_path path="../interface"/>
-<use name="XtalDAQ/OnlineCBCAnalyser"/>
+<use name="SLHCUpgradeTracker/CBCAnalysis"/>
 <bin name="standaloneCBCAnalyser" file="standaloneCBCAnalyser.cpp"/>

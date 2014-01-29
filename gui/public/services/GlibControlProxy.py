@@ -11,12 +11,17 @@
 # @author Mark Grimes (mark.grimes@bristol.ac.uk)
 # @date 17/Jan/2014
 
+# The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
+# this line gets the directory of this file. I then look three parents up to get the directory
+# of the CBCAnalysis installation.
+INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
+
 if __name__ == '__main__':
 	# The important settings.
 	logging=False      # Whether to dump debugging information to a log.
 	sendAddress="/tmp/CBCTestStand_rpc_server"  # The socket address that the receiving script listens on
 	# The script that will answer my requests
-	receivingScript="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/gui/serverProcess/GlibControlService.py"
+	receivingScript=INSTALLATION_PATH+"/gui/serverProcess/GlibControlService.py"
 	
 	#	# this is if JSONService.py is run as a CGI
 	#	from jsonrpc.cgihandler import handleCGIRequest

@@ -36,7 +36,7 @@ protected:
 #include <cppunit/config/SourcePrefix.h>
 #include <iostream>
 #include <stdexcept>
-#include "XtalDAQ/OnlineCBCAnalyser/interface/SCurve.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/SCurve.h"
 #include <TEfficiency.h>
 #include <TH1.h>
 #include <TMath.h>

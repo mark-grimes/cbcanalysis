@@ -8,8 +8,8 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef XtalDAQ_OnlineCBCAnalyser_interface_HttpServer_h
-#define XtalDAQ_OnlineCBCAnalyser_interface_HttpServer_h
+#ifndef SLHCUpgradeTracker_CBCAnalysis_interface_HttpServer_h
+#define SLHCUpgradeTracker_CBCAnalysis_interface_HttpServer_h
 
 #include <string>
 #include <vector>

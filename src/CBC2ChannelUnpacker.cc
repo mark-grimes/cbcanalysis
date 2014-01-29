@@ -1,4 +1,4 @@
-#include "XtalDAQ/OnlineCBCAnalyser/interface/CBC2ChannelUnpacker.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/CBC2ChannelUnpacker.h"
 #include <EventFilter/SiStripRawToDigi/interface/SiStripFEDBuffer.h>
 #include <DataFormats/FEDRawData/interface/FEDRawData.h>
 

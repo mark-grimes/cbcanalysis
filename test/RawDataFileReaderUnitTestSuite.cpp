@@ -28,7 +28,7 @@ protected:
 #include <cppunit/config/SourcePrefix.h>
 #include <iostream>
 #include <stdexcept>
-#include "XtalDAQ/OnlineCBCAnalyser/interface/RawDataFileReader.h"
+#include "SLHCUpgradeTracker/CBCAnalysis/interface/RawDataFileReader.h"
 
 CPPUNIT_TEST_SUITE_REGISTRATION(RawDataFileReaderUnitTestSuite);
 

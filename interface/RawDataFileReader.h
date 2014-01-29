@@ -1,5 +1,5 @@
-#ifndef XtalDAQ_OnlineCBCAnalyser_interface_RawDataFileReader_h
-#define XtalDAQ_OnlineCBCAnalyser_interface_RawDataFileReader_h
+#ifndef SLHCUpgradeTracker_CBCAnalysis_interface_RawDataFileReader_h
+#define SLHCUpgradeTracker_CBCAnalysis_interface_RawDataFileReader_h
 
 #include <vector>
 #include <iosfwd>
