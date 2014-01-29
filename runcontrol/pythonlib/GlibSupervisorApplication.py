@@ -1,11 +1,11 @@
-
+import os, inspect
 # The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
 # this line gets the directory of this file. I then look three parents up to get the directory
 # of the CBCAnalysis installation.
 INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
 
-import XDAQTools
-import os
+import XDAQTools, re
+from I2cChip import I2cChip
 
 class GlibSupervisorApplication( XDAQTools.Application ) :
 	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterDirectory=INSTALLATION_PATH+"/runcontrol/i2c" ) :

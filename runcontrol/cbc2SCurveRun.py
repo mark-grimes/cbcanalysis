@@ -20,7 +20,9 @@ told to save the histograms to an output file.
 @date 06/Jan/2014
 """
 
-import SimpleGlibRun, time
+from pythonlib.SimpleGlibProgram import SimpleGlibProgram
+from pythonlib.AnalyserControl import AnalyserControl
+import time
 
 def cbc2SCurveRun( daqProgram, analysisControl, thresholds, temporaryOutputFilename="/tmp/cbc2SCurveRun_OutputFile.dat", silent=False ) :
 	daqProgram.startAllProcesses( forceRestart=True ) # forceRestart will kill the XDAQ processes first if they're running
@@ -56,10 +58,8 @@ def cbc2SCurveRun( daqProgram, analysisControl, thresholds, temporaryOutputFilen
 	daqProgram.waitUntilAllProcessesKilled();
 
 if __name__ == '__main__':
-	daqProgram = SimpleGlibRun.SimpleGlibProgram( "GlibSuper.xml" )
-	#analyserControlValues={}
-	#analysisControl = SimpleGlibRun.AnalyserControl(analyserControlValues)
-	analysisControl = SimpleGlibRun.AnalyserControl( "127.0.0.1", "50000" ) #pass values here
-	cbc2SCurveRun( daqProgram, analysisControl, range(100,150) ) #and here
+	daqProgram = SimpleGlibProgram( "GlibSuper.xml" )
+	analysisControl = AnalyserControl( "127.0.0.1", "50000" )
+	cbc2SCurveRun( daqProgram, analysisControl, range(100,150) )
 	analysisControl.saveHistograms( "/tmp/histograms.root" )
 	print "Histograms saved to '/tmp/histograms.root'"

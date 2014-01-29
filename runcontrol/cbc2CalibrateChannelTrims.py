@@ -5,7 +5,8 @@
 @date 23/Jan/2014
 """
 
-import SimpleGlibRun
+from pythonlib.SimpleGlibProgram import SimpleGlibProgram
+from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import cbc2SCurveRun
 
 
@@ -194,8 +195,8 @@ def cbc2CalibrateChannelTrims( daqProgram, analysisControl, scanRange, midPointT
 
 
 if __name__ == '__main__':
-	daqProgram = SimpleGlibRun.SimpleGlibProgram( "GlibSuper.xml" )
-	analysisControl = SimpleGlibRun.AnalyserControl( "127.0.0.1", "50000" )
+	daqProgram = SimpleGlibProgram( "GlibSuper.xml" )
+	analysisControl = AnalyserControl( "127.0.0.1", "50000" )
 	
 	cbc2CalibrateChannelTrims( daqProgram, analysisControl, range(100,150), 127, "/tmp/calibrateChannelTrims" )
 	
