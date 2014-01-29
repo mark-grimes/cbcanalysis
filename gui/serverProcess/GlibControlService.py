@@ -1,11 +1,41 @@
 #!/usr/local/bin/python
 
+# Script that sits and listens on a Unix socket for jsonrpc commands.
+#
+# This script is started the first time the CBC test stand makes a Remote Procedure
+# Call and stays running. This allows the RPC service to appear as though it has
+# persistent state, even though apache launches each request in a new process.
+#
+# The message format it is expecting is "<reply address>\n<request length>\n<jsonrpc request>"
+# and it will reply to the socket listening on <reply address> with "<reply length>\n<jsonrpc reply>".
+# In both cases the message length parameter is for the jsonrpc request/reply only
+# and doesn't include the length of the reply address or length specifier.
+#
+# **N.B.** If you make any changes to this script then you will have to kill the
+# running process for it to take effect. The running process is most likely running
+# under the user "apache". So you'll have to e.g.:
+# @code
+#     ps -u apache
+#     <find the pid of the "python2.6" process>
+#     sudo kill <pid>
+# @endcode
+#
+# Don't kill with SIGKILL (i.e. signal 9)! If you do that the socket is not closed
+# properly and the apache process will think it's still running, and won't start it
+# when a request comes in. If you do, you'll have to manually remove the socket.
+#
+# @author Mark Grimes (mark.grimes@bristol.ac.uk)
+# @date 17/Jan/2014
+
+
 import sys, os, inspect, socket, time, signal
 from CGIHandlerFromStrings import CGIHandlerFromStrings
 
 directoryOfThisFile = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 BasePath = os.path.abspath(os.path.join(directoryOfThisFile, os.pardir, os.pardir))
 sys.path.append( os.path.join( BasePath, "runcontrol" ) )
+sys.path.append('/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/runcontrol')
+from cbc2SCurveRun import cbc2ScurveRun
 import SimpleGlibRun
 
 class GlibControlService:
@@ -22,6 +52,7 @@ class GlibControlService:
 	def __init__(self):
 		self.boardAddress = "192.168.0.175"
 		self.program = SimpleGlibRun.SimpleGlibProgram( os.path.join( BasePath, "runcontrol", "GlibSuper.xml" ) )
+		self.cbc2SCurveRun = cbc2SCurveRun
 		for context in self.program.contexts :
 			context.forcedEnvironmentVariables = {'APVE_ROOT': '/opt/APVe',
 				'CMSSW_BASE': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4',
@@ -86,6 +117,10 @@ class GlibControlService:
 		chipNames = msg.keys()
 		registerNameValueTuple = msg[chipNames[0]]
 		return self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
+	
+	def controlSCurveValues(self, msg):
+		controlSettings = msg
+		return 0
 		
 	def startProcesses(self, msg):
 		"""
@@ -117,7 +152,7 @@ class GlibControlService:
 
 if __name__ == '__main__':	
 
-	listeningAddress="/tmp/python_unix_sockets_example"
+	listeningAddress="/tmp/CBCTestStand_rpc_server"
 	
 	if os.path.exists( listeningAddress ):
 		os.remove( listeningAddress )

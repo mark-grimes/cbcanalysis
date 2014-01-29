@@ -129,6 +129,9 @@ namespace cbcanalyser
 		 */
 		std::unique_ptr<TEfficiency> createHistogram( const std::string& name ) const;
 
+		/** @brief Restores from the TEfficiencies found in the directory supplied. */
+		void restoreFromEfficiency( const TEfficiency* pEfficiency );
+
 		/** @brief Fits the s-curve with an error function and returns the TF1.
 		 */
 		std::unique_ptr<TF1> fit() const;
@@ -136,11 +139,13 @@ namespace cbcanalyser
 		/** @brief Returns the fit parameters for the s-curve.
 		 *
 		 * The returned std::tuple contains the three fit parameters. These are: </br>
-		 * tuple entry 0 - The maximum efficiency
-		 * tuple entry 1 - The standard deviation
-		 * tuple entry 2 - The mean
+		 * tuple entry 0 - The chi2 of the fit
+		 * tuple entry 1 - The number of degrees of freedom
+		 * tuple entry 2 - The maximum efficiency
+		 * tuple entry 3 - The standard deviation
+		 * tuple entry 4 - The mean
 		 */
-		std::tuple<float,float,float> fitParameters() const;
+		std::tuple<float,float,float,float,float> fitParameters() const;
 
 
 		void dumpToStream( std::ostream& outputStream ) const;
@@ -160,6 +165,8 @@ namespace cbcanalyser
 		void storeFitParameters ( const TF1& fittedFunction );
 
 		// Fit results
+		float fit_chi2_;
+		float fit_ndf_;
 		float fit_maxEfficiency_;
 		float fit_standardDeviation_;
 		float fit_mean_;
@@ -207,6 +214,9 @@ namespace cbcanalyser
 		/** @brief Creates a series of sub-directories for histograms for all of the s-curves. */
 		void createHistograms( TDirectory* pParentDirectory ) const;
 
+		/** @brief Restores from the TEfficiencies found in the directory supplied. */
+		void restoreFromDirectory( TDirectory* pParentDirectory );
+
 		void dumpToStream( std::ostream& outputStream ) const;
 		void restoreFromStream( std::istream& inputStream );
 	protected:
@@ -231,6 +241,9 @@ namespace cbcanalyser
 
 		/** @brief Creates a series of sub-directories for histograms for all of the s-curves. */
 		void createHistograms( TDirectory* pParentDirectory ) const;
+
+		/** @brief Restores from the TEfficiencies found in the directory supplied. */
+		void restoreFromDirectory( TDirectory* pParentDirectory );
 
 		void dumpToStream( std::ostream& outputStream ) const;
 		void restoreFromStream( std::istream& inputStream );

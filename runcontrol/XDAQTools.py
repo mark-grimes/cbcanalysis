@@ -375,7 +375,6 @@ class Context(object) :
 				if not forceStart : raise Exception("Context "+str(self)+" appears to already be running. Try again with either forceRestart or forceStart set to True.")
 
 		self.jobid=-1
-		#response=ElementTree.fromstring( xdglib.sendConfigurationStartCommand( "http://"+self.host+":"+self.port, self.configFilename ) )
 		response=ElementTree.fromstring( sendSoapStartCommand( self.host, self.port, self.configFilename, self.forcedEnvironmentVariables ) )
 		try:
 			response.__class__=ETElementExtension
@@ -386,7 +385,6 @@ class Context(object) :
 	def killProcess(self) :
 		if self.jobid==-1 :
 			return False
-		#response=ElementTree.fromstring( xdglib.sendConfigurationKillCommand( "http://"+self.host+":"+self.port, self.jobid ) )
 		response=ElementTree.fromstring( sendSoapMessage( self.host, None, '<xdaq:killExec user="xtaldaq" jid="'+self.jobid+'" xmlns:xdaq="urn:xdaq-soap:3.0" />' ) )
 		try:
 			response.__class__=ETElementExtension
@@ -450,7 +448,6 @@ class Application(object) :
 
 	def sendCommand( self, command ) :
 		return sendSoapMessage( self.host, self.port, '<xdaq:'+command+' xmlns:xdaq="urn:xdaq-soap:3.0"/>', self.className, self.instance )
-		#return xdglib.sendSOAPCommand( self.host, self.port, self.className, self.instance, command )
 
 	def getState(self) :
 		try :
@@ -532,9 +529,12 @@ class Program(object) :
 		del self.contexts
 		self._loadXDAQConfig()
 
-	def startAllProcesses( self ) :
+	def startAllProcesses( self, ignoreIfCurrentlyRunning=False, forceRestart=False, forceStart=False ) :
+		"""
+		Starts all of the processes. See the docs for startProcess for the meaning of the parameters.
+		"""
 		for context in self.contexts:
-			context.startProcess()
+			context.startProcess( ignoreIfCurrentlyRunning, forceRestart, forceStart )
 
 	def killAllProcesses( self ) :
 		for context in self.contexts:

@@ -369,7 +369,7 @@ void cbcanalyser::AnalyseCBCOutput::request_scurveFits( httpserver::HttpServer::
 			for( const auto& stripIndex : channelSCurves.getValidStripIndices() )
 			{
 				auto& sCurve=channelSCurves.getStripSCurve(stripIndex);
-				std::tuple<float,float,float> fitParameters;
+				std::tuple<float,float,float,float,float> fitParameters;
 				fitParameters=sCurve.fitParameters();
 
 				// Output the fit parameters as JSON
@@ -378,9 +378,11 @@ void cbcanalyser::AnalyseCBCOutput::request_scurveFits( httpserver::HttpServer::
 						<< "\t\t" << "\"fedChannel\" : " << channelIndex << "," << "\n"
 						<< "\t\t" << "\"cbcChannel\" : " << stripIndex << "," << "\n"
 						<< "\t\t" << "\"fitParameters\" : {" << "\n"
-						<< "\t\t\t" << "\"maxEfficiency\" : " << std::get<0>(fitParameters) << "," << "\n"
-						<< "\t\t\t" << "\"standardDeviation\" : " << std::get<1>(fitParameters) << "," << "\n"
-						<< "\t\t\t" << "\"mean\" : " << std::get<2>(fitParameters) << "," << "\n"
+						<< "\t\t\t" << "\"chi2\" : " << std::get<0>(fitParameters) << "," << "\n"
+						<< "\t\t\t" << "\"NDF\" : " << std::get<1>(fitParameters) << "," << "\n"
+						<< "\t\t\t" << "\"maxEfficiency\" : " << std::get<2>(fitParameters) << "," << "\n"
+						<< "\t\t\t" << "\"standardDeviation\" : " << std::get<3>(fitParameters) << "," << "\n"
+						<< "\t\t\t" << "\"mean\" : " << std::get<4>(fitParameters) << "," << "\n"
 						<< "\t\t" << "}" << "\n"
 						<< "\t" << "}," << "\n";
 			} // end of loop over strips

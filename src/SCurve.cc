@@ -215,25 +215,24 @@ std::unique_ptr<TEfficiency> cbcanalyser::SCurve::createHistogram( const std::st
 		pNewHistogram->SetTotalEvents( binNumber, thresholdEntryPair.second.eventsOn()+thresholdEntryPair.second.eventsOff() );
 		pNewHistogram->SetPassedEvents( binNumber, thresholdEntryPair.second.eventsOn() );
 	}
-//	// Work out what bin width I need for the given number of entries so that the range
-//	// runs from 0 to 1.
-//	float binWidth=1.0/static_cast<float>(entries_.size());
-//
-//	// Make two TH1F to store all events and passed (on) events
-//	TH1F hAll(name.c_str(),name.c_str(), entries_.size(), -binWidth, 1+binWidth);
-//        TH1F hPass("Pass","Pass", entries_.size(), -binWidth, 1+binWidth);
-//
-//	for( size_t index=0; index<entries_.size(); ++index )
-//	{
-//		const cbcanalyser::SCurveEntry& entry=getEntry(index);
-//		hAll.SetBinContent( index+1, entry.eventsOn() + entry.eventsOff() );
-//                hPass.SetBinContent( index+1, entry.eventsOn() );
-//	}
-//
-//        std::unique_ptr<TEfficiency> pNewHistogram( new TEfficiency( hPass, hAll ) );
-//        pNewHistogram->SetDirectory(nullptr);
 
 	return pNewHistogram;
+}
+
+void cbcanalyser::SCurve::restoreFromEfficiency( const TEfficiency* pEfficiency )
+{
+	// Clear whatever was there before hand
+	entries_.clear();
+	const TH1* pPassedHistogram=pEfficiency->GetPassedHistogram();
+	const TH1* pTotalHistogram=pEfficiency->GetTotalHistogram();
+
+	// Loop over all of the bins in the histogram
+	for( int binIndex=1; binIndex<pPassedHistogram->GetXaxis()->GetNbins()+1; ++binIndex )
+	{
+		SCurveEntry& thisEntry=entries_[pPassedHistogram->GetBinCenter(binIndex)];
+		thisEntry.eventsOn()=pPassedHistogram->GetBinContent(binIndex);
+		thisEntry.eventsOff()=pTotalHistogram->GetBinContent(binIndex)-pPassedHistogram->GetBinContent(binIndex);
+	}
 }
 
 std::unique_ptr<TF1> cbcanalyser::SCurve::fit() const
@@ -241,62 +240,65 @@ std::unique_ptr<TF1> cbcanalyser::SCurve::fit() const
 	std::unique_ptr<TEfficiency> pHistogram=createHistogram( "efficiencyForFit" );
 
 	return fitHistogram( pHistogram );
-//	// Need to figure out the minimum and maximum for the fit by
-//	// examining the low and high edges of the TEfficiency.
-//	float lowEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge(1);
-//	// To get the high edge need to check low edge of the overflow bin
-//	float highEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge( pHistogram->GetPassedHistogram()->GetNbinsX()+1 );
-//
-//	std::unique_ptr<TF1> pFitFunction( new TF1( "efficiencyFitFunction", "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", lowEdge, highEdge ) );
-//	pFitFunction->SetParameters( 1, 1.1, (lowEdge+highEdge)/2 ); // Set initial parameters
-//	//pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
-//	pFitFunction->FixParameter(0,1); // Fix p0 to be between 1
-//
-//	// When fitting minuit prints loads of crap to the screen. To stop this I'll
-//	// temporarily redirect standard output. I read somewhere that it should be
-//	// possible to supply the "Q" option to disable output, but that doesn't seem
-//	// to work. Maybe because it's a TEfficiency and not a TH1.
-//	{
-//		//RedirectedPrintfSentry printfRedirector;
-//		pHistogram->Fit( pFitFunction.get() );
-//	}
-//
-//	return pFitFunction;
 }
 
 std::unique_ptr<TF1> cbcanalyser::SCurve::fitHistogram( const std::unique_ptr<TEfficiency>& pHistogram )
 {
+	// The fit fails quite often unless I have a very good starting
+	// estimate of the fit parameters. I'll first look through the
+	// efficiency and find an estimate for the midpoint.
+	int numberOfBins=pHistogram->GetPassedHistogram()->GetXaxis()->GetNbins();
+	int highBin=numberOfBins;
+	int lowBin=1;
+	std::cout << "Checking bins" << std::endl;
+	while( highBin-lowBin>1 )
+	{
+		int midBin=(lowBin+highBin)/2;
+		std::cout << "   " << lowBin << ", " << midBin << ", " << highBin << " mid eff=" << pHistogram->GetEfficiency(midBin) << std::endl;
+		if( pHistogram->GetEfficiency(midBin)>0.5 ) highBin=midBin;
+		else lowBin=midBin;
+	}
+	double midpoint=pHistogram->GetPassedHistogram()->GetBinCenter(lowBin);
+	std::cout << "*** Midpoint Estimate is " << midpoint << std::endl;
+
+	//
 	// Need to figure out the minimum and maximum for the fit by
 	// examining the low and high edges of the TEfficiency.
 	float lowEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge(1);
 	// To get the high edge need to check low edge of the overflow bin
 	float highEdge=pHistogram->GetPassedHistogram()->GetBinLowEdge( pHistogram->GetPassedHistogram()->GetNbinsX()+1 );
 
-	std::unique_ptr<TF1> pFitFunction( new TF1( "efficiencyFitFunction", "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", lowEdge, highEdge ) );
-	pFitFunction->SetParameters( 1, 1.1, (lowEdge+highEdge)/2 ); // Set initial parameters
+	std::string name=pHistogram->GetName();
+	name+="-efficiencyFitFunction";
+	std::unique_ptr<TF1> pFitFunction( new TF1( name.c_str(), "([0]*0.5)*( 1 + TMath::Erf( [1]*(x-[2])/TMath::Sqrt2() ) )", lowEdge, highEdge ) );
+
+	//pFitFunction->SetParameters( 1, 6, (lowEdge+highEdge)/2 ); // Set initial parameters
+	pFitFunction->SetParameters( 1, 6, midpoint );
 	//pFitFunction->SetParLimits(0,0,1); // Limit range of p0 to be between 0 and 1
-	pFitFunction->FixParameter(0,1); // Fix p0 to be between 1
+	pFitFunction->FixParameter(0,1); // Fix p0 to be 1
 
 	pHistogram->Fit( pFitFunction.get() );
 
 	return pFitFunction;
 }
 
-std::tuple<float,float,float> cbcanalyser::SCurve::fitParameters() const
+std::tuple<float,float,float,float,float> cbcanalyser::SCurve::fitParameters() const
 {
 	std::unique_ptr<TF1> pFitFunction=fit();
-	return std::tuple<float,float,float>( pFitFunction->GetParameter(0), pFitFunction->GetParameter(1), pFitFunction->GetParameter(2) );
+	return std::tuple<float,float,float,float,float>( pFitFunction->GetChisquare(), pFitFunction->GetNDF(), pFitFunction->GetParameter(0), pFitFunction->GetParameter(1), pFitFunction->GetParameter(2) );
 }
 
 void cbcanalyser::SCurve::storeFitParameters( const TF1& fittedFunction )
 {
-  if ( fittedFunction.GetNpar() != 3 ) {
-    return;
-  }
-  fit_maxEfficiency_=fittedFunction.GetParameter(0);
-  fit_maxEfficiency_=fittedFunction.GetParameter(1);
-  fit_maxEfficiency_=fittedFunction.GetParameter(2);
-  return;
+	if ( fittedFunction.GetNpar() != 3 ) return;
+
+	fit_chi2_=fittedFunction.GetChisquare();
+	fit_ndf_=fittedFunction.GetNDF();
+	fit_maxEfficiency_=fittedFunction.GetParameter(0);
+	fit_standardDeviation_=fittedFunction.GetParameter(1);
+	fit_mean_=fittedFunction.GetParameter(2);
+
+	return;
 }
 
 void cbcanalyser::SCurve::dumpToStream( std::ostream& outputStream ) const
@@ -365,7 +367,7 @@ void cbcanalyser::FedChannelSCurves::createHistograms( TDirectory* pParentDirect
 	for( const auto& stripNumberSCurvesPair : stripSCurves_ )
 	{
 		stringConverter.str("");
-		stringConverter << "Strip " << std::setfill('0') << std::setw(2) << stripNumberSCurvesPair.first;
+		stringConverter << "Strip " << std::setfill('0') << std::setw(3) << stripNumberSCurvesPair.first;
 
 		std::unique_ptr<TEfficiency> pNewHistogram=stripNumberSCurvesPair.second.createHistogram( stringConverter.str() );
 		pNewHistogram->SetDirectory( pParentDirectory );
@@ -377,12 +379,34 @@ void cbcanalyser::FedChannelSCurves::createHistograms( TDirectory* pParentDirect
 
 		// Set current directory and write fitted function
 		pParentDirectory->cd();
-		pNewFittedFunction->Write();
+		//pNewFittedFunction->Write();
 
 		pNewHistogram.release(); // When the directory gets set, the directory takes ownership
 		pNewFittedFunction.release();
 	}
 
+}
+
+void cbcanalyser::FedChannelSCurves::restoreFromDirectory( TDirectory* pParentDirectory )
+{
+	// Get rid of anything that was present before hand
+	stripSCurves_.clear();
+
+	// I'll just try and retrieve all possible values for now. I haven't got time
+	// to implement something that works out the channel number from the names
+	// of the subdirectories.
+	std::stringstream stringConverter;
+	for( size_t stripChannelNumber=0; stripChannelNumber<256; ++stripChannelNumber )
+	{
+		stringConverter.str("");
+		stringConverter << "Strip " << std::setfill('0') << std::setw(3) << stripChannelNumber;
+
+		TEfficiency* pEfficiency=dynamic_cast<TEfficiency*>( pParentDirectory->Get(stringConverter.str().c_str()) );
+		if( pEfficiency!=nullptr )
+		{
+			stripSCurves_[stripChannelNumber].restoreFromEfficiency(pEfficiency);
+		}
+	}
 }
 
 void cbcanalyser::FedChannelSCurves::dumpToStream( std::ostream& outputStream ) const
@@ -473,12 +497,34 @@ void cbcanalyser::FedSCurves::createHistograms( TDirectory* pParentDirectory ) c
 	for( const auto& fedChannelNumberSCurvesPair : fedChannelSCurves_ )
 	{
 		stringConverter.str("");
-		stringConverter << "Channel " << std::setfill('0') << std::setw(2) << fedChannelNumberSCurvesPair.first;
+		stringConverter << "CBC " << std::setfill('0') << std::setw(2) << fedChannelNumberSCurvesPair.first;
 
 		TDirectory* pSubDirectory=pParentDirectory->mkdir( stringConverter.str().c_str() );
 		fedChannelNumberSCurvesPair.second.createHistograms( pSubDirectory );
 	}
 
+}
+
+void cbcanalyser::FedSCurves::restoreFromDirectory( TDirectory* pParentDirectory )
+{
+	// Get rid of anything that was present before hand
+	fedChannelSCurves_.clear();
+
+	// I'll just try and retrieve all possible values for now. I haven't got time
+	// to implement something that works out the FED channel number from the names
+	// of the subdirectories.
+	std::stringstream stringConverter;
+	for( size_t fedChannelNumber=0; fedChannelNumber<100; ++fedChannelNumber )
+	{
+		stringConverter.str("");
+		stringConverter << "CBC " << std::setfill('0') << std::setw(2) << fedChannelNumber;
+
+		TDirectory* pSubDirectory=pParentDirectory->GetDirectory(stringConverter.str().c_str());
+		if( pSubDirectory!=nullptr )
+		{
+			fedChannelSCurves_[fedChannelNumber].restoreFromDirectory(pSubDirectory);
+		}
+	}
 }
 
 void cbcanalyser::FedSCurves::dumpToStream( std::ostream& outputStream ) const

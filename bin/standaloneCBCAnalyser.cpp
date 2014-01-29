@@ -24,6 +24,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <sstream>
+#include <iomanip>
 
 #include "XtalDAQ/OnlineCBCAnalyser/interface/RawDataFileReader.h"
 #include "XtalDAQ/OnlineCBCAnalyser/interface/HttpServer.h"
@@ -104,22 +105,37 @@ namespace
 		httpserver::HttpServer::splitURI( request.uri, resource, parameters );
 
 		std::stringstream output;
-		output << "Available commands (case sensitive):" << "\n"
-				<< "   analyseFile?filename=<filename>     Analyses the file with the supplied filename." << "\n"
-				<< "   setThreshold?value=<value>          Sets the current threshold (the abscissa for all plots) to the specified value." << "\n"
-				<< "   saveHistograms?filename=<filename>  Save the histograms in their current state to the specified file. If it already" << "\n"
-				<< "                                       exists it will be overwritten." << "\n"
-				<< "\n";
 
-		output << "Raw string=\"" << request.uri << "\"" << "\n";
-		output << "Your request was \"" << resource << "\" with " << parameters.size() << " parameters" << "\n";
 		for( const auto& paramValuePair : parameters )
 		{
-			output << "   " << paramValuePair.first << " = " << "\"" << paramValuePair.second << "\""<< "\n";
+			if( paramValuePair.first=="debug" )
+			{
+				output << "Raw string=\"" << request.uri << "\"" << "\n";
+				output << "Your request was \"" << resource << "\" with " << parameters.size() << " parameters" << "\n";
+				for( const auto& paramValuePair : parameters )
+				{
+					output << "   " << paramValuePair.first << " = " << "\"" << paramValuePair.second << "\""<< "\n";
+				}
+				output << "\n";
+			}
 		}
-		output << "\n";
 
-		if( resource=="/analyseFile" || resource=="/analyzeFile" )
+
+		if( resource=="/" )
+		{
+			output << "Available commands (case sensitive):" << "\n"
+					<< "   analyseFile?filename=<filename>          Analyses the file with the supplied filename." << "\n"
+					<< "   restoreFromRootFile?filename=<filename>  Restores the data from a file previously saved with saveHistograms." << "\n"
+					<< "   setThreshold?value=<value>               Sets the current threshold (the abscissa for all plots) to the specified value." << "\n"
+					<< "   saveHistograms?filename=<filename>       Save the histograms in their current state to the specified file. If it already" << "\n"
+					<< "                                            exists it will be overwritten." << "\n"
+					<< "   version                                  States the version of this code." << "\n"
+					<< "   reset                                    Resets any data taken." << "\n"
+					<< "\n"
+					<< "You can add the parameter \"debug\" to any command to echo your request."
+					<< "\n";
+		}
+		else if( resource=="/analyseFile" || resource=="/analyzeFile" )
 		{
 			output << "analyseFile called" << "\n";
 			// Look through the parameters and try and find the filename to open
@@ -138,6 +154,7 @@ namespace
 					output << "Oh dear. An exception was encountered. Here it is: " << error.what() << "\n";
 				}
 			}
+			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
 		}
 		else if( resource=="/saveHistograms" )
 		{
@@ -154,6 +171,7 @@ namespace
 				connectedCBCSCurves_.createHistograms( &outputFile );
 				outputFile.Write();
 			}
+			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
 		}
 		else if( resource=="/setThreshold" )
 		{
@@ -162,7 +180,7 @@ namespace
 			std::string valueAsString;
 			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="value" ) valueAsString=paramValuePair.second;
 
-			if( valueAsString.empty() ) output << "Error! no value was supplied." << "\n";
+			if( valueAsString.empty() ) output << "Error! no value was supplied. Add \"?value=<threshold>\" to the URL." << "\n";
 			else
 			{
 				std::stringstream stringConverter;
@@ -172,10 +190,84 @@ namespace
 				output << "Setting threshold to " << variable << "; previous value was " << threshold_ << "\n";
 				threshold_=variable;
 			}
+			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
 		}
-		else output << "Unknown command. See the available commands above" << "\n";
+		else if( resource=="/version" )
+		{
+			output << "Version=" << "0.0" << "\n";
+			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+		}
+		else if( resource=="/restoreFromRootFile" )
+		{
+			// Look through the parameters and try and find the filename to open
+			std::string filename;
+			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
 
-		reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+			if( filename.empty() )
+			{
+				output << "Error! no filename was supplied, or it's empty." << "\n";
+				reply.status=httpserver::HttpServer::Reply::StatusType::bad_request;
+			}
+			else
+			{
+				try
+				{
+					// Open a TFile and try loading the TEfficiency objects from the different subdirectories
+					TFile outputFile( filename.c_str() );
+					if( outputFile.IsZombie() ) throw std::runtime_error( "Unable to open file "+filename );
+					connectedCBCSCurves_.restoreFromDirectory( &outputFile );
+					output << "State loaded from file " << filename << "\n";
+					reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+				}
+				catch( std::exception& error )
+				{
+					output << "Error! " << error.what() << "\n";
+					reply.status=httpserver::HttpServer::Reply::StatusType::internal_server_error;
+				}
+			}
+		}
+		else if( resource=="/fitParameters" )
+		{
+			output << "{" << "\n";
+			std::vector<size_t> channelIndices=connectedCBCSCurves_.getValidChannelIndices();
+			for( std::vector<size_t>::const_iterator iIndexA=channelIndices.begin(); iIndexA!=channelIndices.end(); ++iIndexA )
+			{
+				output << "   \"CBC " << std::setfill('0') << std::setw(2)  << *iIndexA << "\": {" << "\n";
+				cbcanalyser::FedChannelSCurves& fedChannel=connectedCBCSCurves_.getFedChannelSCurves(*iIndexA);
+				std::vector<size_t> stripIndices=fedChannel.getValidStripIndices();
+				for( std::vector<size_t>::const_iterator iIndexB=stripIndices.begin(); iIndexB!=stripIndices.end(); ++iIndexB )
+				{
+					cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(*iIndexB);
+					std::tuple<float,float,float,float,float> parameters=sCurve.fitParameters();
+					output << "      \"Channel " << std::setfill('0') << std::setw(3)  << *iIndexB
+							<< "\": { \"chi2\": " << std::get<0>(parameters)
+							<< ", \"ndf\":" << std::get<1>(parameters)
+							<< ", \"maxEfficiency\":" << std::get<2>(parameters)
+							<< ", \"standardDeviation\":" << std::get<3>(parameters)
+							<< ", \"mean\":" << std::get<4>(parameters) << " }";
+					if( iIndexB+1 != stripIndices.end() ) output << ",";
+					output << "\n";
+				}
+				output << "   }";
+				if( iIndexA+1 != channelIndices.end() ) output << ",";
+				output << "\n";
+			}
+			output << "}" << "\n";
+		}
+		else if( resource=="/reset" )
+		{
+			output << "Reset called. Removing all data." << "\n";
+			connectedCBCSCurves_=cbcanalyser::FedSCurves();
+			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+		}
+		else
+		{
+			output << "Unknown command. You can see a list of the available commands by requesting the root resource (i.e. \"/\")." << "\n";
+			reply.status=httpserver::HttpServer::Reply::StatusType::not_found;
+		}
+
+		// Status should already have been set in the "if" statements above
+		//reply.status=httpserver::HttpServer::Reply::StatusType::ok;
 		reply.content=output.str();
 		reply.headers.resize( 2 );
 		reply.headers[0].name="Content-Length";

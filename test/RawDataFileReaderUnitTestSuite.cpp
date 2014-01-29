@@ -9,7 +9,7 @@
 class RawDataFileReaderUnitTestSuite : public CPPUNIT_NS::TestFixture
 {
 	CPPUNIT_TEST_SUITE(RawDataFileReaderUnitTestSuite);
-	CPPUNIT_TEST(testSimpleFile);
+	//CPPUNIT_TEST(testSimpleFile);
 	CPPUNIT_TEST_SUITE_END();
 
 protected:

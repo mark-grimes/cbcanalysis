@@ -13,7 +13,7 @@ Date 06/Jan/2014
 """
 
 
-import XDAQTools, time, math, httplib, urllib, os
+import XDAQTools, time, math, httplib, urllib, os, json, re
 
 class I2cRegister :
 	"""
@@ -89,19 +89,40 @@ class I2cChip :
 	
 	def setChannelTrim( self, channelNumber, value ) :
 		"""
-		Set the register with the name "Channel<channelNumber>" to the supplied value
+		Set the register with the name "Channel<channelNumber+1>" to the supplied value.
+		
+		Note that the argument starts counting from zero, whereas the register string
+		name starts counting from 1. So calling setChannelTrim( 23, <value> ) will
+		change the register named "Channel024". This is because all other code regarding
+		channels starts counting from zero.
 		"""
 		# I don't know of the channel numbers are padded with zeros in the register
 		# name, so I'll try a few possibilities
-		possibleNames = [ "Channel%d"%(channelNumber), "Channel%02d"%(channelNumber), "Channel%03d"%(channelNumber) ]
+		possibleNames = [ "Channel%d"%(channelNumber+1), "Channel%02d"%(channelNumber+1), "Channel%03d"%(channelNumber+1) ]
 		for name in possibleNames :
 			register = self.getRegister(name)
-			if register == None : print name+" doesn't work"
-			else : name+" works"
 		if register==None :
 			raise Exception( "Nothing known about channel "+str(channelNumber) )
 		register.value=value
 
+	def getChannelTrim( self, channelNumber ) :
+		"""
+		Returns the value in register "Channel<channelNumber+1>".
+		
+		Note that the argument starts counting from zero, whereas the register string
+		name starts counting from 1. So calling getChannelTrim( 23 ) will return the
+		value of the register named "Channel024". This is because all other code regarding
+		channels starts counting from zero.
+		"""
+		# I don't know of the channel numbers are padded with zeros in the register
+		# name, so I'll try a few possibilities
+		possibleNames = [ "Channel%d"%(channelNumber+1), "Channel%02d"%(channelNumber+1), "Channel%03d"%(channelNumber+1) ]
+		for name in possibleNames :
+			register = self.getRegister(name)
+		if register==None :
+			raise Exception( "Nothing known about channel "+str(channelNumber) )
+		return register.value
+		
 	def writeToFilename( self, filename, registerNames=None ) :
 		"""
 		Writes all currently held values to the given filename. If registerNames is specified only those
@@ -128,6 +149,7 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		# constructor.
 		if not hasattr( self, "host" ) : super(GlibSupervisorApplication,self).__init__( host, port, className, instance )
 
+		self._directoryForI2C=I2cRegisterDirectory
 		# I2C parameters have to be saved to a file, and then the GlibSupervisor told to send the
 		# file to the board. This is the temporary directory I'll use to store the files.
 		self.tempDirectory="/tmp/cbcTestStandTempFiles/supervisor"
@@ -142,7 +164,7 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		# request, even if they're already set at the required values.
 		self.parameters = {
 			'user_wb_ttc_fmc_regs_pc_commands_TRIGGER_SEL':'off',  # turn off triggering from TTC
-			'user_wb_ttc_fmc_regs_pc_commands_INT_TRIGGER_FREQ':4, # 4 corresponds to 16Hz. Look on the webconfig to see the other values
+			'user_wb_ttc_fmc_regs_pc_commands_INT_TRIGGER_FREQ':7, # 4 corresponds to 16Hz. Look on the webconfig to see the other values
 			'user_wb_ttc_fmc_regs_pc_commands2_FE0_masked':'off',
 			'user_wb_ttc_fmc_regs_pc_commands2_FE1_masked':'off',
 			'user_wb_ttc_fmc_regs_pc_commands_ACQ_MODE':'on',      # Continuous storage
@@ -157,14 +179,51 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		# before hand with a read I2C request (not very RESTful but hey ho).
 		self.writeI2cParameters = {}
 		self.writeI2cResource = "/urn:xdaq-application:lid="+str(self.id)+"/i2cWriteFileValues"
-		
-		# These are flags to say which FMCs are connected. I don't actually have the code to set
-		# these properly yet, until then I'll hard code it.
-		# Note that for some reason, the GlibSupervisor calls FMC1 "FE1" and FMC2 "FE0"
-		self.isFMC1Connected = False
-		self.isFMC2Connected = True
 
-		# See what I2C registers there are.
+		# I can only do the setup for the CBCs once this application has gone to the configured
+		# state. I'll have to check this parameter in all methods and configure if it hasn't been
+		# done yet.
+		self._connectedCBCsHaveBeenInitialised=False
+		# I expect this call to fail, but there's a chance the XDAQ process is already running
+		# and this python representation of it is just re-connecting to it.
+		try:
+			self._initConnectedCBCs()
+		except:
+			pass
+
+	def _initConnectedCBCs( self ) :
+		"""
+		Initialise information about the connected CBCs. This is only possible after this
+		application has been sent the "Initialise" message, which means the XDAQ process
+		must have already been started.
+		"""
+		# First need to know which FMCs are connected. The only place I've found
+		# this information is available is in the main webpage, and it is only
+		# available there after moving to the "Initialised" state. Otherwise I
+		# could do this during __init__.
+		
+		try: 
+			webpage = self.httpRequest( "GET", '/urn:xdaq-application:lid='+str(self.id), {}, True )
+		except:
+			# The XDAQ process probably hasn't been started. Replace the 'connection refused' error
+			# with one that is more discriptive to the user.
+			raise Exception("Couldn't connect to the XDAQ process to get information about the connected CBCs. Is the XDAQ process running and GlibSupervisor initialised?")
+		# Perform a regular expression search on the HTML to see what the
+		# state of each FMC is. I do this by looking at the alt text.
+		fmcState=re.findall( """(?<=alt=')\w+(?='/> FMC 1<)""", webpage.fullMessage )
+		if len(fmcState)!=1 : raise Exception( "Failed when querying which FMCs are connected. This information is only available after GlibSupervisor has been initialised.")
+		elif fmcState[0]=='ON' : self.isFMC1Connected=True
+		elif fmcState[0]=='OFF' : self.isFMC1Connected=False
+		else : raise Exception( "Failed when querying which FMCs are connected. FMC 1 reported '"+fmcState[0]+"' which is not equal to either 'ON' or 'OFF'.")
+		# Do the same for FMC 2
+		fmcState=re.findall( """(?<=alt=')\w+(?='/> FMC 2<)""", webpage.fullMessage )
+		if len(fmcState)!=1 : raise Exception( "Failed when querying which FMCs are connected. This information is only available after GlibSupervisor has been initialised.")
+		elif fmcState[0]=='ON' : self.isFMC2Connected=True
+		elif fmcState[0]=='OFF' : self.isFMC2Connected=False
+		else : raise Exception( "Failed when querying which FMCs are connected. FMC 2 reported '"+fmcState[0]+"' which is not equal to either 'ON' or 'OFF'.")
+		
+		self._connectedCBCsHaveBeenInitialised=True
+		
 		self.i2cChips = {}
 		if self.isFMC1Connected :
 			self.i2cChips['FE1CBC0'] = I2cChip()
@@ -177,17 +236,19 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		failedChipNames = []
 		for chipName in self.i2cChips.keys() :
 			try :
-				self.i2cChips[chipName].loadFromFile(I2cRegisterDirectory+'/'+chipName+'.txt')
+				self.i2cChips[chipName].loadFromFile(self._directoryForI2C+'/'+chipName+'.txt')
 			except :
-				raise
 				failedChipNames.append(chipName)
 
 		if len(failedChipNames)!=0 : raise Exception( "Couldn't load values for chips: "+str(failedChipNames) )
+		
 
 	def connectedCBCNames(self) :
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		return self.i2cChips.keys()
 	
 	def I2CRegisterValues( self, chipNames=None ) :
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		if chipNames==None : cbcNames=self.connectedCBCNames()
 		else : cbcNames=chipNames
 		returnValue = {}
@@ -204,6 +265,7 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		Note that these parameters aren't sent to the board unti the "Configure" state
 		transition.
 		"""
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		if triggerRate!=None :
 			triggerRateCode = int( math.log( triggerRate, 2 ) )
 			self.parameters['user_wb_ttc_fmc_regs_pc_commands_INT_TRIGGER_FREQ']=triggerRateCode
@@ -217,6 +279,7 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		"""
 		Sets the trim for all channels. Note that this isn't written to the board until sendI2C is called
 		"""
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		for channel in range(0,254) :
 			self.setChannelTrim( channel, value )
 	
@@ -225,9 +288,23 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		Sets the trim for the specified channel. Note that this isn't written to the board until sendI2C is called.
 		By default acts on all CBCs, but this can be limited by specifying an array for 'chipNames'.
 		"""
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		if chipNames==None : chipNames=self.i2cChips.keys()
 		for name in chipNames :
 			self.i2cChips[name].setChannelTrim( channel, value )
+
+	def getChannelTrim( self, channel, chipNames=None ) :
+		"""
+		Returns a map of the channel trim for each chip. If only one chip is requested
+		returns the value instead of a map.
+		"""
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
+		if chipNames==None : chipNames=self.i2cChips.keys()
+		result = {}
+		for name in chipNames :
+			result[name]=self.i2cChips[name].getChannelTrim( channel )
+		if len(chipNames)==1 : return result[chipNames[0]] # Don't bother with a map if it's only one chip
+		else : return result
 
 	def setI2c( self, registerNameValueTuple, chipNames=None ) :
 		"""
@@ -237,6 +314,8 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		Note this doesn't set the register on the chip, only in the internal representation. Changes
 		will not be sent to the chip until sendI2c is called.
 		"""
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
+		
 		if chipNames==None : chipNames=self.i2cChips.keys()
 		for name in chipNames :
 			chip = self.i2cChips[name]
@@ -250,6 +329,14 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		GlibSupervisor to send these files. By default does so for all connected CBCs, but this
 		can be limited by specifying an array for 'chipNames'.
 		"""
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
+		
+		self.saveI2c( self.tempDirectory, registerNames, chipNames )
+		self.sendI2cFilesFromDirectory( self.tempDirectory )
+	
+	def saveI2c( self, directoryName, registerNames=None, chipNames=None ) :
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
+		
 		# First make sure there are no files left over from previous sends. Allow an error
 		# of 'No such file or directory' but throw any other exceptions.
 		for filename in ["FE0CBC0.txt","FE0CBC1.txt","FE1CBC0.txt","FE1CBC1.txt"] :
@@ -257,12 +344,16 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 				os.remove( os.path.join(self.tempDirectory,filename) )
 			except Exception as error :
 				if error.args[1] != 'No such file or directory' : raise
+		# make sure the directory exists
+		try:
+			os.makedirs( directoryName )
+		except:
+			pass
 		
 		if chipNames==None : chipNames=self.i2cChips.keys()
 		for name in chipNames :
-			self.i2cChips[name].writeToFilename( os.path.join(self.tempDirectory,name+".txt"), registerNames )
-		self.sendI2cFilesFromDirectory( self.tempDirectory )
-	
+			self.i2cChips[name].writeToFilename( os.path.join(directoryName,name+".txt"), registerNames )
+
 	def sendI2cFilesFromDirectory( self, directoryName ) :
 		"""
 		Asks the GlibSupervisor to send the files in the given directory to the CBC registers.
@@ -280,6 +371,8 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		Note that this method completely bypasses the I2C representation held internally by this
 		class.
 		"""
+		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
+		
 		self.writeI2cParameters = {} # clear this of any previous entries
 		# Note that for some reason, the GlibSupervisor calls FMC1 "FE1" and FMC2 "FE0".
 		if self.isFMC1Connected :
@@ -426,7 +519,7 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 		super(SimpleGlibProgram,self).reloadXDAQConfig()
 		self._extendStreamerAndSupervisor()
 		
-	def initialise( self, triggerRate=16, numberOfEvents=100, timeout=5.0 ) :
+	def initialise( self, triggerRate=None, numberOfEvents=100, timeout=5.0 ) :
 		"""
 		Starts the initialise process. If "timeout" is positive then control will block
 		until all the applications have reached the required state, or until "timeout"
@@ -451,7 +544,7 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 	def setAndSendI2c( self, registerNameValueTuple, chipNames=None ) :
 		self.supervisor.setI2c( registerNameValueTuple, chipNames )
 		self.supervisor.sendI2c( registerNameValueTuple.keys(), chipNames )
-		
+	
 	def configure( self, timeout=5.0 ) :
 		self.supervisor.sendCommand( "Configure" )
 		self.streamer.sendCommand( "configure" )
@@ -490,27 +583,50 @@ class AnalyserControl :
 	Class to interact with the C++ analysis program. This tells the program what to do by sending it
 	HTTP requests.
 	"""
-	def __init__ ( self, host, port ):
+	def __init__ ( self, host, port, startServerIfNotRunning=True ):
 		self.connection=httplib.HTTPConnection( host+":"+str(port) )
 		# Make sure the connection is closed, because all the other methods assume
 		# it's in that state. Presumably the connection will have failed at that
 		# stage anyway.
 		self.connection.close()
 
-	def httpGetRequest( self, resource, parameters={} ) :
+		try :
+			# Try and connect to see if the process is running. If it isn't, I'll have
+			# to start it. Remove any data that has been left over from a previous run.
+			self.httpGetRequest( "reset" )
+		except:
+			if startServerIfNotRunning :
+				import subprocess
+				print "AnalyserControl: server isn't running. Going to start on port "+str(port)+"."
+				devnull=open("/dev/null")
+				subprocess.Popen( ['standaloneCBCAnalyser','50000'], stdout=devnull, stderr=devnull )
+				time.sleep(1) # Sleep for a second to allow the new process to open the port
+			else :
+				raise Exception( "The standaloneCBCAnalyser server is not running. Either start it manually or retry with startServerIfNotRunning set to True." )
+		
+
+	def httpGetRequest( self, resource, parameters={}, returnResponse=False ) :
 		"""
 		For some reason httplib doesn't send the parameters as part of the URL. Not sure if it's
 		supposed to but I thought it was. My mini http server running in C++ can't decode these
 		(at the moment) so I'll add the parameters to the URL by hand.
+		
+		If returnResponse is True, the actual response from the server is returned. Otherwise
+		True or False is returned depending on whether the server returned success or not.
 		"""
 		try:
 			self.connection.connect()
 			headers = {"Content-type": "application/x-www-form-urlencoded","Accept": "text/plain"}
 			self.connection.request( "GET", "/"+urllib.quote(resource)+"?"+urllib.urlencode(parameters), {}, headers )
 			response = self.connection.getresponse()
-			self.connection.close()
-			if response.status==200 : return True
-			else : return False
+			if returnResponse :
+				message=response.read()
+				self.connection.close()
+				return message
+			else :
+				self.connection.close()
+				if response.status==200 : return True
+				else : return False
 		except :
 			# Make sure the connection is closed before leaving this method, no
 			# matter what the circumstances are. Otherwise the connection might
@@ -520,10 +636,47 @@ class AnalyserControl :
 			raise
 
 	def analyseFile( self, filename ) :
-		self.httpGetRequest( "analyseFile", { "filename" : filename } )
+		return self.httpGetRequest( "analyseFile", { "filename" : filename } )
 
 	def saveHistograms( self, filename ) :
-		self.httpGetRequest( "saveHistograms", { "filename" : filename } )
+		return self.httpGetRequest( "saveHistograms", { "filename" : filename } )
 
 	def setThreshold( self, threshold ) :
-		self.httpGetRequest( "setThreshold", { "value" : str(threshold) } )
+		return self.httpGetRequest( "setThreshold", { "value" : str(threshold) } )
+	
+	def reset( self ) :
+		return self.httpGetRequest( "reset" )
+	
+	def restoreFromRootFile( self, filename ) :
+		return self.httpGetRequest( "restoreFromRootFile", { "filename" : filename } )
+	
+	def fitParameters( self ) :
+		jsonString=self.httpGetRequest( "fitParameters", returnResponse=True )
+		analysisResult=json.loads( jsonString )
+		# The CBC code indexes CBCs differently. I'll rearrange this structure to match
+		# the python code.
+		result={}
+		for cbcName in analysisResult.keys() :
+			if cbcName=='CBC 00' : pythonCbcName='FE0CBC0'
+			elif cbcName=='CBC 01' : pythonCbcName='FE0CBC1'
+			elif cbcName=='CBC 02' : pythonCbcName='FE1CBC0'
+			elif cbcName=='CBC 03' : pythonCbcName='FE1CBC1'
+			else : pythonCbcName=cbcName
+			# The C++ code doesn't know if a CBC is connected or not, since unconnected CBCs
+			# show up in the DAQ dumps as all on channels. I need to check whether these are
+			# actually connected.
+			arrayOfChannels=[]
+			for channelNumber in range(0,254) :
+				channelName="Channel %03d"%channelNumber
+				try:
+					arrayOfChannels.append( analysisResult[cbcName][channelName] )
+				except:
+					# The C++ code might not now about the channel and not return it. I need
+					# the array to be the correct size though so I'll just add 'None'.
+					arrayOfChannels.append( None )
+			result[pythonCbcName]=arrayOfChannels
+
+		return result
+			
+		
+		

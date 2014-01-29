@@ -1,21 +1,36 @@
 #!/usr/local/bin/python
 
+# RPC service that takes any commands and pipes them through to another script, listens for
+# for the response and then returns it. This is all done over Unix sockets. If the script
+# that it wants to pipe to isn't running, then it starts it.
+#
+# This is a bit over complicated, but apache starts this script in a new process for each
+# request. Hence it cannot have persistent state. To get around this it starts the other
+# script which runs permanently and communicates with that.
+#
+# @author Mark Grimes (mark.grimes@bristol.ac.uk)
+# @date 17/Jan/2014
 
 if __name__ == '__main__':
-	logging=False
+	# The important settings.
+	logging=False      # Whether to dump debugging information to a log.
+	sendAddress="/tmp/CBCTestStand_rpc_server"  # The socket address that the receiving script listens on
+	# The script that will answer my requests
+	receivingScript="/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/gui/serverProcess/GlibControlService.py"
+	
 	#	# this is if JSONService.py is run as a CGI
 	#	from jsonrpc.cgihandler import handleCGIRequest
 	#	handleCGIRequest(GlibControlService())
 	import socket, os, sys, time
-	if not os.path.exists( "/tmp/python_unix_sockets_example" ):
+	if not os.path.exists( sendAddress ):
 		# Server isn't running, so start it
-		procID=os.spawnlp(os.P_NOWAIT, 'nohup', 'nohup', 'python2.6', '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/XtalDAQ/OnlineCBCAnalyser/gui/serverProcess/GlibControlService.py')
+		procID=os.spawnlp(os.P_NOWAIT, 'nohup', 'nohup', 'python2.6', receivingScript )
 		time.sleep(1) # Sleep for a second to allow the new process to open the port
 	
 	client = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
-	client.connect( "/tmp/python_unix_sockets_example" )
+	client.connect( sendAddress )
 	
-	listeningAddress="/tmp/python_unix_sockets_response-"+str(os.getpid())
+	listeningAddress="/tmp/CBCTestStand_rpc_server_response-"+str(os.getpid())
 	response = socket.socket( socket.AF_UNIX, socket.SOCK_DGRAM )
 	response.bind( listeningAddress )
 	

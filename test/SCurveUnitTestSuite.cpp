@@ -13,6 +13,7 @@ class SCurveUnitTestSuite : public CPPUNIT_NS::TestFixture
 //	CPPUNIT_TEST(testCalculateBinning);
 //	CPPUNIT_TEST(testTEfficiencyCreation);
 //	CPPUNIT_TEST(testFitting);
+	CPPUNIT_TEST(testRestoreFromTEfficiency);
 	CPPUNIT_TEST_SUITE_END();
 
 protected:
@@ -24,6 +25,7 @@ protected:
 	void testSaveAndRestore();
 	void testCalculateBinning();
 	void testTEfficiencyCreation();
+	void testRestoreFromTEfficiency();
 	void testFitting();
 };
 
@@ -258,6 +260,19 @@ void SCurveUnitTestSuite::testTEfficiencyCreation()
 	CPPUNIT_ASSERT_DOUBLES_EQUAL( 0, pEfficiency->GetEfficiencyErrorUp(3), 0.00001 );
 }
 
+void SCurveUnitTestSuite::testRestoreFromTEfficiency()
+{
+	std::cout << "\n" << "Testing restore from TEfficiency" << std::endl;
+	cbcanalyser::FedSCurves myFeds;
+
+	TFile* pInputFile=TFile::Open("/tmp/histograms.root");
+	myFeds.restoreFromDirectory(pInputFile);
+
+	TFile* pOutputFile=TFile::Open("/tmp/newHistograms.root","RECREATE");
+	myFeds.createHistograms(pOutputFile);
+	pOutputFile->Write();
+}
+
 void SCurveUnitTestSuite::testFitting()
 {
 	//
@@ -293,9 +308,9 @@ void SCurveUnitTestSuite::testFitting()
 	// Now that I have filled it with fake data, I'll try and fit it and see
 	// if the fit parameters compare to the simulation parameters
 	//
-	std::tuple<float,float,float> fitParameters=scurve.fitParameters();
-	CPPUNIT_ASSERT_DOUBLES_EQUAL( 1, std::get<0>(fitParameters), 0.00001 );
-	CPPUNIT_ASSERT_DOUBLES_EQUAL( standardDeviation, std::get<1>(fitParameters), standardDeviation*0.05 ); // Make sure they match to within 5%
-	CPPUNIT_ASSERT_DOUBLES_EQUAL( meanTurnOn, std::get<2>(fitParameters), meanTurnOn*0.05 ); // Make sure they match to within 5%
+	std::tuple<float,float,float,float,float> fitParameters=scurve.fitParameters();
+	CPPUNIT_ASSERT_DOUBLES_EQUAL( 1, std::get<2>(fitParameters), 0.00001 );
+	CPPUNIT_ASSERT_DOUBLES_EQUAL( standardDeviation, std::get<3>(fitParameters), standardDeviation*0.05 ); // Make sure they match to within 5%
+	CPPUNIT_ASSERT_DOUBLES_EQUAL( meanTurnOn, std::get<4>(fitParameters), meanTurnOn*0.05 ); // Make sure they match to within 5%
 
 }
