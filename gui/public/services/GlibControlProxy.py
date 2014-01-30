@@ -11,10 +11,11 @@
 # @author Mark Grimes (mark.grimes@bristol.ac.uk)
 # @date 17/Jan/2014
 
+import os, inspect
 # The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
 # this line gets the directory of this file. I then look three parents up to get the directory
 # of the CBCAnalysis installation.
-INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
+INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir, os.pardir))
 
 if __name__ == '__main__':
 	# The important settings.
