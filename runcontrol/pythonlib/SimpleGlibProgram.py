@@ -28,6 +28,37 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 		del self.supervisor
 		super(SimpleGlibProgram,self).reloadXDAQConfig()
 		self._extendStreamerAndSupervisor()
+	
+	def initialiseCBCs( self ) :
+		"""
+		Initialises the state of the connected CBCs by checking which FMCs are connected.
+		This means that the XDAQ process for the GlibSupervisor has to be started and
+		initialised. If the process previously wasn't running it will be killed afterwards.
+		"""
+		if self.supervisor._connectedCBCsHaveBeenInitialised : return
+
+		currentState=self.supervisor.getState()
+		supervisorContext=None
+		if currentState=="<uncontactable>" :
+			# Need to find the context for the supervisor and start it. I don't
+			# know which one it is though so I'll have to search through them.
+			for context in self.contexts :
+				for application in context.applications :
+					if application==self.supervisor : supervisorContext=context
+			supervisorContext.startProcess( ignoreIfCurrentlyRunning=True )
+			supervisorContext.waitUntilProcessStarted()
+			currentState=self.supervisor.getState()
+
+		if currentState=="Initial" :
+			self.supervisor.sendCommand( "Initialise" )
+			self.supervisor.waitForState( "Halted" )
+
+		self.supervisor._initConnectedCBCs()
+
+		# If I had to start the process then I'll kill it so that it was in the state
+		# it was in beforehand.
+		if supervisorContext!=None : supervisorContext.killProcess()
+			
 		
 	def initialise( self, triggerRate=None, numberOfEvents=100, timeout=5.0 ) :
 		"""
@@ -35,7 +66,6 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 		until all the applications have reached the required state, or until "timeout"
 		seconds have passed.
 		"""
-
 		self.supervisor.sendCommand( "Initialise" )
 		if timeout>0 : self.supervisor.waitForState( "Halted", timeout )
 		

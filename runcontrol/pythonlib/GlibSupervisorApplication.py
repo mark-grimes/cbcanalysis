@@ -29,7 +29,7 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		# request, even if they're already set at the required values.
 		self.parameters = {
 			'user_wb_ttc_fmc_regs_pc_commands_TRIGGER_SEL':'off',  # turn off triggering from TTC
-			'user_wb_ttc_fmc_regs_pc_commands_INT_TRIGGER_FREQ':7, # 4 corresponds to 16Hz. Look on the webconfig to see the other values
+			'user_wb_ttc_fmc_regs_pc_commands_INT_TRIGGER_FREQ':5, # 4 corresponds to 16Hz. Look on the webconfig to see the other values
 			'user_wb_ttc_fmc_regs_pc_commands2_FE0_masked':'off',
 			'user_wb_ttc_fmc_regs_pc_commands2_FE1_masked':'off',
 			'user_wb_ttc_fmc_regs_pc_commands_ACQ_MODE':'on',      # Continuous storage

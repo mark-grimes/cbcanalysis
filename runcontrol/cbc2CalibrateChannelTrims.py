@@ -12,7 +12,7 @@ from cbc2SCurveRun import cbc2SCurveRun
 
 def takeRun( targets, thresholdRange ) :
 	analysisControl.reset()
-	cbc2SCurveRun( daqProgram, analysisControl, thresholdRange, silent=True )
+	cbc2SCurveRun( daqProgram, analysisControl, thresholdRange, silent=False )
 	#analysisControl.restoreFromRootFile( "/tmp/newHistograms.root" )
 	fitParameters=analysisControl.fitParameters()
 	for target in targets :
@@ -128,11 +128,17 @@ def cbc2CalibrateChannelTrims( daqProgram, analysisControl, scanRange, midPointT
 	@author Mark Grimes (mark.grimes@bristol.ac.uk)
 	@date 24/Jan/2014
 	"""
+	# Before making any changes to the CBC I2C parameters I have to initialise
+	# the CBC information in the control program. This isn't in the __init__
+	# because it requires starting the XDAQ process which might not be what the
+	# user wants
+	daqProgram.initialiseCBCs()
+
 	# Set up the targets that I want the channels to be on. This is where I want the midpoint
 	# of the s-curve to sit.
 	targets=[]
-	for cbcName in ['FE0CBC0'] : #daqProgram.supervisor.connectedCBCNames() :
-		for channelNumber in range(0,5) : #range(0,254) :
+	for cbcName in daqProgram.supervisor.connectedCBCNames() :
+		for channelNumber in range(0,254) :
 			targets.append( {'cbcName':cbcName, 'channelNumber':channelNumber, 'target':midPointTarget, 'previousResults':[] } )
 
 	loop=0
@@ -141,7 +147,7 @@ def cbc2CalibrateChannelTrims( daqProgram, analysisControl, scanRange, midPointT
 	# I perform linear fits of the previous results to estimate what the trim to be.
 	# For this to work I'll start off taking one run with very low trims and with
 	# high trims so that I have enough data points for the fit.
-	
+		
 	# Take a run a quarter of the way along the range
 	for target in targets :
 		daqProgram.supervisor.setChannelTrim(target['channelNumber'],63,[target['cbcName']])
@@ -157,26 +163,26 @@ def cbc2CalibrateChannelTrims( daqProgram, analysisControl, scanRange, midPointT
 	if interimOutputFilename!=None : analysisControl.saveHistograms( interimOutputFilename+"-high.root" )
 	
 	# For debugging print the results
-	print "Results after high and low scans"
-	for target in targets :
-		print target
+	#print "Results after high and low scans"
+	#for target in targets :
+	#	print target
 		
 	setNewTrims( targets )
-	print "Trims set to"
-	for target in targets :
-		channelNumber=target['channelNumber']
-		cbcName=target['cbcName']
-		trim=daqProgram.supervisor.getChannelTrim(channelNumber,[cbcName])
-		print cbcName+"["+str(channelNumber)+"]="+str(trim)
+	#print "Trims set to"
+	#for target in targets :
+	#	channelNumber=target['channelNumber']
+	#	cbcName=target['cbcName']
+	#	trim=daqProgram.supervisor.getChannelTrim(channelNumber,[cbcName])
+	#	print cbcName+"["+str(channelNumber)+"]="+str(trim)
 
-	return
 
 	while not scurvesAlign :
 		loop+=1
 		print "Starting loop "+str(loop)+". Channels still to calibrate="+str(len(targets))
+		for target in targets :
+			print target
 		takeRun( targets, scanRange )
 		setNewTrims( targets )
-		#print targets
 		if interimOutputFilename!=None : analysisControl.saveHistograms( interimOutputFilename+"-loop"+str(loop)+".root" )
 		# Might as well save the trims as I go in case something goes wrong
 		if interimOutputFilename!=None : daqProgram.supervisor.saveI2c( interimOutputFilename+"-loop"+str(loop) )
