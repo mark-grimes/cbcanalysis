@@ -47,7 +47,7 @@ def cbc2SCurveRun( daqProgram, analysisControl, thresholds, temporaryOutputFilen
 	
 		daqProgram.play()
 		if not silent : print "Taking data at threshold "+str(threshold)
-		while daqProgram.streamer.acquisitionState()!="Stopped":
+		while daqProgram.streamer.acquisitionState()=="Running":
 			time.sleep(2)
 		
 		daqProgram.pause()
