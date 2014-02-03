@@ -16,7 +16,7 @@ class I2cRegister :
 	def __repr__(self) :
 		return "<I2cRegister "+self.name+", "+hex(self.value)+">"
 	def writeToFile(self,file) :
-		file.write( self.name.ljust(20)+hex(self.page).ljust(8)+hex(self.address).ljust(8)+hex(self.defaultValue).ljust(8)+hex(self.value).ljust(8)+"\n" )
+		file.write( self.name.ljust(32)+" "+hex(self.page).ljust(8)+" "+hex(self.address).ljust(8)+" "+hex(self.defaultValue).ljust(8)+" "+hex(self.value).ljust(8)+"\n" )
 
 class I2cChip :
 	"""
