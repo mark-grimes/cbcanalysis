@@ -156,7 +156,7 @@ def sendSoapStartCommand( host, port, configFilename, forcedEnvironmentVariables
 		'XDAQ_DOCUMENT_ROOT',
 		'ROOTSYS',
 		'LD_LIBRARY_PATH',
-		'PYTHONPATH',
+		#'PYTHONPATH',
 		'CMSSW_SEARCH_PATH',
 		'HOME',
 		'HOSTNAME',
