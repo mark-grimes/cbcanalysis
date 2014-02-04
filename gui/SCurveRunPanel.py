@@ -14,15 +14,24 @@ from pyjamas.ui.TextBox import TextBox
 from ErrorMessage import ErrorMessage
 from pyjamas.ui.Button import Button
 
+from pyjamas.Canvas.GWTCanvas import GWTCanvas as Canvas
+from pyjamas.ui.Composite import Composite
+from pyjamas.Canvas import Color
+#from pyjamas.Canvas.SVGCanvas import SVGCanvas as Canvas
+from pyjamas.Canvas.ImageLoader import loadImages
+
 class SCurveRunPanel :
 	
 	class onClickListener :
 		def __init__(self, panel) :
-			self._ClickPanel=panel
-			self._ClickPanel.launchButton.setEnabled(False)
+			self._ClickPanel=panel	
 			
 		def onRemoteResponse(self, response, request_info):
-			self._ClickPanel.launchButton.setEnabled(False)
+			#self._ClickPanel.launchButton.setEnabled(False)
+			for buttonName in self._ClickPanel.controlValueEntries:
+				self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
+			#self._ClickPanel.controlValueEntries["RangeHi"].setText(response.keys()[1])	
+			#self._ClickPanel.launchButton.setEnabled(True)
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -49,19 +58,20 @@ class SCurveRunPanel :
 		
 		self.controlValueEntries={} #controls the parameters of the s-curve
 		
+		self.graphCanvas=GraphCanvas(self)
+		
 		self.rpcService.getSCurveValues( )	
 		
-		self.mainSettings=DisclosurePanel("Control Settings")
+		self.mainSettings=VerticalPanel("Control Settings")
 		self.startButton=VerticalPanel("Run Button")
+		self.canvasPanel=VerticalPanel("Canvas")
 		
 		self.mainSettings.add(self.createControlPanel(["RangeLo","RangeHi","Steps","FileName"]))
 		
-		
 		self.echo=Label()
 		
-		
 		self.launchButton=Button("Launch Now")
-		self.launchButton.addClickListener(self, self.onClick())
+		self.launchButton.addClickListener(self)
 		self.launchButton.setEnabled(True)
 		
 		self.mainPanel.add(self.mainSettings)
@@ -69,23 +79,23 @@ class SCurveRunPanel :
 		self.mainPanel.add(self.launchButton)
 		self.mainPanel.add(self.echo)
 		
+		#self.canvasPanel.add(graphCanvas)
+		
+		#self.mainPanel.add(self.drawCanvas(self))
+		
 	
 	def echoSelection(self): #fb - a good "print screen" method
 		msg = " You pressed: "
-		msg += str(self.controlValueEntries)
+		#value =	self.controlValueEntries.keys()
+		#msg = value
 			
 		self.echo.setText(msg)	
-	
-	def onChange( self, sender ) :
-		#if sender==self.
-		self.rpcService.getSCurveValues(self.controlValueEntries, SCurveRunPanel.controlSCurveValueListener(self))
-		#self.echoSelection()		
 		
-	def onClick(self, sender):
-		return 0
-		#self.rpcService.getSCurveValues(0, SCurveRunPanel.onClickListener(self))	
-		#self.echoSelection()	
-
+	def onClick(self, sender) :
+		if sender == self.launchButton:
+			self.msg = {"RangeLo":100, "RangeHi" :150, "Steps":1, "FileName":"test.png"}
+			#self.msg=self.controlValueEntries
+			self.rpcService.getSCurveValues(self.msg, SCurveRunPanel.onClickListener(self))
 		
 	def getPanel(self) :
 		return self.mainPanel
@@ -101,11 +111,12 @@ class SCurveRunPanel :
 			newTextBox.setEnabled(True)
 			newTextBox.setWidth(80)
 			newPanel.add(newTextBox)	
+			if buttonName=="RangeLo": newTextBox.setText("100") # Default values
+			elif buttonName=="RangeHi": newTextBox.setText("150")
+			elif buttonName=="Steps": newTextBox.setText("1")
+			elif buttonName=="FileName": newTextBox.setText("TestRun.png")
 			
-			if buttonName=="FileName":
-				newTextBox.setText("TestRun.png")
-			else: newTextBox.setText("0")
-			newTextBox.addChangeListener(self)
+			#newTextBox.addChangeListener(self)
 			newTextBox.setTitle(buttonName) 
 			
 			self.controlValueEntries[buttonName]=newTextBox	
@@ -123,9 +134,31 @@ class SCurveRunPanel :
 			label.setWidth(maxWidth)
 
 		return flowPanel
-		
 	
-
+	#def canvas(self):
+	#	self.width=500
+	#	self.height=400
+	#	self.canvasName="S Curve"
+		
+class GraphCanvas: #broken at the moment - fb
+	
+	def __init__(self):
+		self.canvas = Canvas(self, 500, 500, 500, 500)
+		self.canvasName="S Curve"
+		#loadImages(['Three_Colours-Blue-Coffee-Sugar.jpg'], self)
+		
+	def draw (self):
+		#self.saveContext()
+		#self.drawImage(self.earth.getElement() ,-12,-12)
+		pass
+		
+		
+	def onImagesLoaded(self, imagesHandles):
+		#self.img = imagesHandles[0]
+		self.draw()			
+	
+	def onError(self):
+		pass
 	
 
 
