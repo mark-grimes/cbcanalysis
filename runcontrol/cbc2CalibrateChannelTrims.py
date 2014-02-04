@@ -100,16 +100,30 @@ def setNewTrims( targets ) :
 		elif newTrim>255 : newTrim=255
 		# Look through the previous results to make sure I haven't tried
 		# this trim before.
-		newTrimHasAlreadyBeenTried=False
-		for previousResult in target['previousResults'] :
-			if previousResult['trim']==newTrim : newTrimHasAlreadyBeenTried=True
-		if newTrimHasAlreadyBeenTried :
-			# Stop modifying this channel and set the trim to whichever
-			# one that has already been tried that's closest to the target
-			targetsToRemove.append(target)
-			setToBestPreviousResult(target)
+		newTrimHasAlreadyBeenTried=True # Set to true to get it in the loop for the first time
+		modificationDirection=0 # I'll set this to -1 if decreasing the trim, +1 if increasing, 0 if undefined
+		while newTrimHasAlreadyBeenTried :
+			newTrimHasAlreadyBeenTried=False
+			for previousResult in target['previousResults'] :
+				if previousResult['trim']==newTrim :
+					if previousResult['mean']>target['target'] : directionToChange=1
+					else : directionToChange=-1
+					# If modificationDirection is not zero then I've changed the trim at least
+					# once. If the direction to change this time is different to the previous
+					# one then I'm not able to find a matching trim. Just set to the best match
+					# and remove it from the list of channels to calibrate
+					if modificationDirection!=0 and modificationDirection!=directionToChange :
+						targetsToRemove.append(target)
+						newTrim=-1 # Set this to something invalid so that I can check it later
+						break
+					else :
+						modificationDirection=directionToChange
+						newTrim+=modificationDirection
+						newTrimHasAlreadyBeenTried=True
+			
 		#print "Setting trim for ["+target['cbcName']+"]["+str(target['channelNumber'])+"]="+str(newTrim)
-		daqProgram.supervisor.setChannelTrim(target['channelNumber'],newTrim,[target['cbcName']])
+		if newTrim!=-1 : daqProgram.supervisor.setChannelTrim(target['channelNumber'],newTrim,[target['cbcName']])
+		else : setToBestPreviousResult(target)
 		
 	# Now I've finished looping over targets I can safely take
 	# out the entries I want to.

@@ -21,7 +21,7 @@ class AnalyserControl :
 				import subprocess
 				print "AnalyserControl: server isn't running. Going to start on port "+str(port)+"."
 				devnull=open("/dev/null")
-				subprocess.Popen( ['standaloneCBCAnalyser','50000'], stdout=devnull, stderr=devnull )
+				subprocess.Popen( ['standaloneCBCAnalyser','50000'], stdout=devnull )
 				time.sleep(1) # Sleep for a second to allow the new process to open the port
 			else :
 				raise Exception( "The standaloneCBCAnalyser server is not running. Either start it manually or retry with startServerIfNotRunning set to True." )

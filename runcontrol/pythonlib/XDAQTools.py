@@ -154,35 +154,16 @@ def sendSoapStartCommand( host, port, configFilename, forcedEnvironmentVariables
 		'XDAQ_OS',
 		'XDAQ_PLATFORM',
 		'XDAQ_DOCUMENT_ROOT',
-		'XDAQ_ELOG',
 		'ROOTSYS',
 		'LD_LIBRARY_PATH',
-		'PYTHONHOME',
-		'PYTHONPATH',
+		#'PYTHONPATH',
 		'CMSSW_SEARCH_PATH',
-		'ENV_CMS_TK_FEC_ROOT',
-		'ENV_CMS_TK_FED9U_ROOT',
-		'ENV_CMS_TK_TTC_ROOT',
-		'ENV_CMS_TK_LTC_ROOT',
-		'ENV_CMS_TK_TTCCI_ROOT',
 		'HOME',
-		'ENV_CMS_TK_PARTITION',
-		'ENV_CMS_TK_CAEN_ROOT',
-		'ENV_CMS_TK_HARDWARE_ROOT',
-		'ENV_CMS_TK_APVE_ROOT',
-		'ENV_CMS_TK_SBS_ROOT',
-		'ENV_CMS_TK_HAL_ROOT',
-		'APVE_ROOT',
-		'ENV_CMS_TK_DIAG_ROOT',
 		'HOSTNAME',
 		'SCRATCH',
-		'ENV_TRACKER_DAQ',
-		'SEAL_PLUGINS',
 		'CMSSW_BASE',
 		'CMSSW_RELEASE_BASE',
-		'CMSSW_VERSION',
-		'POOL_OUTMSG_LEVEL',
-		'POOL_STORAGESVC_DB_AGE_LIMIT']
+		'CMSSW_VERSION']
 	environmentVariables={}
 
 	# Try and set all of the required variables from anything given by forcedEnvironmentVariables.
@@ -207,12 +188,6 @@ def sendSoapStartCommand( host, port, configFilename, forcedEnvironmentVariables
 	soapBody = '<xdaq:startXdaqExe execPath="'+environmentVariables['XDAQ_ROOT']+'/bin/xdaq.exe" user="'+environmentVariables["USER"]+'" argv="-p '+str(port)+' -l INFO" xmlns:xdaq="urn:xdaq-soap:3.0" >\n'
 	soapBody += '<EnvironmentVariable '
 	
-	#environmentVariables=xdglibEnvironmentVariables
-	#environmentVariables["CMSSW_BASE"]=os.getenv("CMSSW_BASE")
-	#environmentVariables["CMSSW_RELEASE_BASE"]=os.getenv("CMSSW_RELEASE_BASE")
-	#environmentVariables["LD_LIBRARY_PATH"]=environmentVariables["CMSSW_BASE"]+"/lib/slc5_amd64_gcc462:/opt/cactus/lib:"+environmentVariables["LD_LIBRARY_PATH"]
-	#environmentVariables["PYTHONPATH"]="/usr/lib64/python2.4:"+environmentVariables["CMSSW_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/python:"+environmentVariables["CMSSW_RELEASE_BASE"]+"/cfipython/slc5_amd64_gcc462"
-
 
 
 	for key in environmentVariables:
@@ -240,52 +215,13 @@ class Context(object) :
 	Date 28/Aug/2013
 	"""
 	def __init__( self, elementTreeNode, configFilename ) :
-		self.xdglibEnvironmentVariables={
-			"XDAQ_ROOT":"/opt/xdaq",
-			"XDAQ_OS":"linux",
-			"XDAQ_PLATFORM":"x86_64_slc5",
-			"XDAQ_DOCUMENT_ROOT":"/opt/xdaq/htdocs",
-			"XDAQ_ELOG":"SET",
-			"ROOTSYS":"/home/xtaldaq/root/",
-			"LD_LIBRARY_PATH":"/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib",
-			"PYTHONPATH":"/usr/lib64/python2.4:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/cfipython/slc5_amd64_gcc462",
-			"PYTHONHOME":"/usr/lib64/python2.4",
-			"CMSSW_SEARCH_PATH":"/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src/",
-			"ENV_CMS_TK_FEC_ROOT":"/opt/trackerDAQ",
-			"ENV_CMS_TK_FED9U_ROOT":"/opt/trackerDAQ",
-			"ENV_CMS_TK_TTC_ROOT":"/opt/TTCSoftware",
-			"ENV_CMS_TK_LTC_ROOT":"/opt/TTCSoftware",
-			"ENV_CMS_TK_TTCCI_ROOT":"/opt/TTCSoftware",
-			"HOME":"/home/xtaldaq",
-			"ENV_CMS_TK_PARTITION":"XY_10-JUN-2009_2",
-			"ENV_CMS_TK_CAEN_ROOT":"/opt/xdaq",
-			"ENV_CMS_TK_HARDWARE_ROOT":"/opt/trackerDAQ",
-			"ENV_CMS_TK_APVE_ROOT":"/opt/APVe",
-			"ENV_CMS_TK_SBS_ROOT":"/opt/trackerDAQ",
-			"ENV_CMS_TK_HAL_ROOT":"/opt/xdaq",
-			"APVE_ROOT":"/opt/APVe",
-			"ENV_CMS_TK_DIAG_ROOT":"/opt/trackerDAQ",
-			"HOSTNAME":"localhost",
-			"SCRATCH":"/tmp",
-			"ENV_TRACKER_DAQ":"/opt/trackerDAQ",
-			"SEAL_PLUGINS":"/opt/cmsswLocal/module",
-			"CMSSW_BASE":"/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4",
-			"CMSSW_VERSION":"CMSSW_5_3_4",
-			"POOL_OUTMSG_LEVEL":"4",
-			"POOL_STORAGESVC_DB_AGE_LIMIT":"10"}
-
 		self.forcedEnvironmentVariables={"XDAQ_ELOG":"SET",
 			"PYTHONHOME":"/usr/lib64/python2.4",
 			"PYTHONPATH":"/usr/lib64/python2.4:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/cfipython/slc5_amd64_gcc462",
-			"ENV_CMS_TK_PARTITION":"XY_10-JUN-2009_2",
-			"ENV_CMS_TK_HARDWARE_ROOT":"/opt/trackerDAQ",
-			"APVE_ROOT":"/opt/APVe",
 			"SCRATCH":"/tmp",
-			"SEAL_PLUGINS":"/opt/cmsswLocal/module",
 			"POOL_OUTMSG_LEVEL":"4",
 			"POOL_STORAGESVC_DB_AGE_LIMIT":"10",
 			"XDAQ_ROOT":"/opt/xdaq",
-			"LD_LIBRARY_PATH":"/opt/cactus/lib:/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib",
 			"XDAQ_DOCUMENT_ROOT":"/opt/xdaq/htdocs"}
 
 		self.applications = []

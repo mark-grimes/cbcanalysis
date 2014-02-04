@@ -48,6 +48,28 @@ class SCurveRunPanel :
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
+
+	class DoNothingListener :
+		"""
+		A class to listen for the response to any calls where I don't care about the result.
+		Later on I'll put in a popup if there's a message.
+		"""
+		def onRemoteResponse(self, response, request_info):
+			# Don't actually want to do anything
+			ErrorMessage( "Unable to contact server: "+str(response) )
+			pass
+
+		def onRemoteError(self, code, message, request_info):
+			ErrorMessage( "Unable to contact server: "+str(message) )
+
+	class DataTakingStatusListener :
+		def __init__( self, SCurveRunPanelInstance ) :
+			self.parentInstance=SCurveRunPanelInstance
+		def onRemoteResponse(self, response, request_info):
+			self.parentInstance.echo.setText( response["statusString"] )
+		def onRemoteError(self, code, message, request_info):
+			ErrorMessage( "Unable to contact server: "+str(message) )
+
 	
 	def __init__( self, rpcService ) :
 		# This is the service that will be used to communicate with the DAQ software
@@ -58,6 +80,7 @@ class SCurveRunPanel :
 		
 		self.controlValueEntries={} #controls the parameters of the s-curve
 		
+
 		self.graphCanvas=GraphCanvas(self)
 		
 		self.rpcService.getSCurveValues( )	
@@ -74,9 +97,14 @@ class SCurveRunPanel :
 		self.launchButton.addClickListener(self)
 		self.launchButton.setEnabled(True)
 		
+		self.getStatusButton=Button("Get Status")
+		self.getStatusButton.addClickListener(self)
+		self.getStatusButton.setEnabled(True)
+		
 		self.mainPanel.add(self.mainSettings)
 		self.mainPanel.add(self.startButton)
 		self.mainPanel.add(self.launchButton)
+		self.mainPanel.add(self.getStatusButton)
 		self.mainPanel.add(self.echo)
 		
 		#self.canvasPanel.add(graphCanvas)
@@ -90,12 +118,17 @@ class SCurveRunPanel :
 		#msg = value
 			
 		self.echo.setText(msg)	
+	
+	def onChange( self, sender ) :
+		pass
 		
-	def onClick(self, sender) :
-		if sender == self.launchButton:
-			self.msg = {"RangeLo":100, "RangeHi" :150, "Steps":1, "FileName":"test.png"}
-			#self.msg=self.controlValueEntries
-			self.rpcService.getSCurveValues(self.msg, SCurveRunPanel.onClickListener(self))
+	def onClick(self, sender):
+		self.echo.setText("Clicked")
+		if sender==self.launchButton :
+			self.rpcService.startSCurveRun( None, SCurveRunPanel.DoNothingListener() )
+		elif sender==self.getStatusButton :
+			self.echo.setText("Querying")
+			self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
 		
 	def getPanel(self) :
 		return self.mainPanel

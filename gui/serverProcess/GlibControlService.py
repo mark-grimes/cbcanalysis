@@ -36,8 +36,10 @@ from CGIHandlerFromStrings import CGIHandlerFromStrings
 # of the CBCAnalysis installation.
 INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
 sys.path.append( os.path.join( INSTALLATION_PATH, "runcontrol" ) )
-from cbc2SCurveRun import cbc2SCurveRun
+
 from pythonlib.SimpleGlibProgram import SimpleGlibProgram
+from pythonlib.AnalyserControl import AnalyserControl
+from cbc2SCurveRun import SCurveRun
 
 class GlibControlService:
 	"""
@@ -50,39 +52,39 @@ class GlibControlService:
 	@author Mark Grimes (mark.grimes@bristol.ac.uk)
 	@date 11/Jan/2014
 	"""
+	class _DataTakingStatusReceiver(object) :
+		"""
+		Simple class to receive the status notifications from the data taking
+		thread. Sets parameters in the GlibControlService provided in the constructor,
+		so intended to be created by GlibControlService passing "self".
+		"""
+		def __init__( self, parentControlService ) :
+			self.parentControlService=parentControlService
+		def currentStatus( self, fractionComplete, statusString ) :
+			self.parentControlService.dataTakingFractionComplete=fractionComplete
+			self.parentControlService.dataTakingStatusString=statusString
+		def finished( self ) :
+			self.parentControlService.dataTakingThread=dataTakingThread
+			self.parentControlService.dataTakingFractionComplete=1
+			self.parentControlService.dataTakingStatusString="Not taking data"
+
 	def __init__(self):
 		self.boardAddress = "192.168.0.175"
 		self.program = SimpleGlibProgram( os.path.join( INSTALLATION_PATH, "runcontrol", "GlibSuper.xml" ) )
-		self.cbc2SCurveRun = cbc2SCurveRun
+		# Need to $CMSSW_BASE/bin to the path so that the analyser program can start
 		for context in self.program.contexts :
-			context.forcedEnvironmentVariables = {'APVE_ROOT': '/opt/APVe',
-				'CMSSW_BASE': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4',
+			context.forcedEnvironmentVariables = {
+				'CMSSW_BASE': '/home/phmag/CMSSW_5_3_4',
+				'SCRAM_ARCH': 'slc5_amd64_gcc462',
 				'CMSSW_RELEASE_BASE': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4',
 				'CMSSW_SEARCH_PATH': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/external/slc5_amd64_gcc462/data:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/data',
 				'CMSSW_VERSION': 'CMSSW_5_3_4',
-				'ENV_CMS_TK_APVE_ROOT': '/home/xtaldaq/trackerDAQ-3.1//TrackerOnline/APVe',
-				'ENV_CMS_TK_CAEN_ROOT': '/opt/xdaq',
-				'ENV_CMS_TK_DIAG_ROOT': '/home/xtaldaq/trackerDAQ-3.1//DiagSystem',
-				'ENV_CMS_TK_FEC_ROOT': '/home/xtaldaq/trackerDAQ-3.1//FecSoftwareV3_0',
-				'ENV_CMS_TK_FED9U_ROOT': '/home/xtaldaq/trackerDAQ-3.1//TrackerOnline/Fed9U/Fed9USoftware',
-				'ENV_CMS_TK_HAL_ROOT': '/opt/xdaq',
-				'ENV_CMS_TK_HARDWARE_ROOT': '/opt/trackerDAQ',
-				'ENV_CMS_TK_LTC_ROOT': '/opt/ttc-6.05.02/TTCSoftware',
-				'ENV_CMS_TK_PARTITION': 'XY_10-JUN-2009_2',
-				'ENV_CMS_TK_SBS_ROOT': '',
-				'ENV_CMS_TK_TTCCI_ROOT': '/opt/ttc-6.05.02/TTCSoftware',
-				'ENV_CMS_TK_TTC_ROOT': '/opt/ttc-6.05.02/TTCSoftware',
-				'ENV_TRACKER_DAQ': '/home/xtaldaq/trackerDAQ-3.1/opt/trackerDAQ',
 				'HOME': '/home/xtaldaq',
 				'HOSTNAME': 'localhost.localdomain',
-				'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/CBCDAQ/lib/:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib',
-				'POOL_OUTMSG_LEVEL': '4',
-				'POOL_STORAGESVC_DB_AGE_LIMIT': '10',
-				'PYTHONHOME': '/usr/lib64/python2.4',
-				'PYTHONPATH': '/usr/lib64/python2.4:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/cfipython/slc5_amd64_gcc462',
+				#'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib',
+				'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/phmag/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/phmag/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib',
 				'ROOTSYS': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/',
 				'SCRATCH': '/tmp',
-				'SEAL_PLUGINS': '/opt/cmsswLocal/module',
 				'XDAQ_DOCUMENT_ROOT': '/opt/xdaq/htdocs',
 				'XDAQ_ELOG': 'SET',
 				'XDAQ_OS': 'linux',
@@ -90,6 +92,19 @@ class GlibControlService:
 				'XDAQ_ROOT': '/opt/xdaq',
 				'USER': 'xtaldaq'
 			}
+		self.program.initialiseCBCs() # Do the necessary initialisation to get information about the CBCs
+		# Need to provide the full executable path because this might not be in the path for different users
+		CMSSW_BASE=self.program.contexts[0].forcedEnvironmentVariables['CMSSW_BASE']
+		SCRAM_ARCH=self.program.contexts[0].forcedEnvironmentVariables['SCRAM_ARCH']
+		LD_LIBRARY_PATH=self.program.contexts[0].forcedEnvironmentVariables['LD_LIBRARY_PATH']
+		os.environ['PATH']=os.environ['PATH']+':'+CMSSW_BASE+"/bin/"+SCRAM_ARCH
+		os.environ['LD_LIBRARY_PATH']=LD_LIBRARY_PATH
+		self.analysisControl = AnalyserControl( "127.0.0.1", "50000" )
+		self.analysisControl.reset()
+		# The members below are for handling the thread that takes data
+		self.dataTakingThread=None
+		self.dataTakingFractionComplete=1
+		self.dataTakingStatusString="Not taking data"
 		
 	def getStates(self, msg):
 		"""
@@ -115,18 +130,20 @@ class GlibControlService:
 		return self.program.supervisor.I2CRegisterValues(msg)
 			
 	def setI2CRegisterValues(self, msg):
+		# Make sure I'm not currently taking data
+		if self.dataTakingThread!=None : raise Exception("Currently taking data")
+
 		chipNames = msg.keys()
 		registerNameValueTuple = msg[chipNames[0]]
 		return self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
 	
-	def controlSCurveValues(self, msg):
-		controlSettings = msg
-		return 0
-		
 	def startProcesses(self, msg):
 		"""
 		Starts all of the XDAQ processes
 		"""
+		# Make sure I'm not currently taking data
+		if self.dataTakingThread!=None : raise Exception("Currently taking data")
+		
 		try:
 			self.program.startAllProcesses()
 			return None
@@ -137,6 +154,9 @@ class GlibControlService:
 		"""
 		Kills all of the XDAQ processes
 		"""
+		# Make sure I'm not currently taking data
+		if self.dataTakingThread!=None : raise Exception("Currently taking data")
+
 		try:
 			self.program.killAllProcesses()
 			return None
@@ -150,6 +170,22 @@ class GlibControlService:
 		# return true or false depending on whether the board can be pinged
 		return testStandTools.ping( self.boardAddress )
 
+	def stopTakingData( self, msg ) :
+		"""
+		Tell the data taking thread to stop whatever it's doing.
+		"""
+		if self.dataTakingThread!=None :
+			self.dataTakingThread.quit=True
+	
+	def startSCurveRun( self, msg ) :
+		"""
+		Starts a new thread taking s-curve data
+		"""
+		self.dataTakingThread=SCurveRun( GlibControlService._DataTakingStatusReceiver(self), self.program, self.analysisControl, range(100,150) )
+		self.dataTakingThread.start()
+
+	def getDataTakingStatus( self, msg ) :
+		return {"fractionComplete":self.dataTakingFractionComplete,"statusString":self.dataTakingStatusString}
 
 if __name__ == '__main__':	
 
