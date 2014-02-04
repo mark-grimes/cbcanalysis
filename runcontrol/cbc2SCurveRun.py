@@ -16,50 +16,119 @@ analysisControl is then told to analyse the output file. This process is repeate
 for however many thresholds are required, and then at the end analysisControl is
 told to save the histograms to an output file.
 
+Updated 06/Feb/2014 so that the functionality is done in a subclass of
+threading.Thread. This script doesn't actually use the extra functionality but it
+is available to the gui if importing this script.
+
 @author Mark Grimes (mark.grimes@bristol.ac.uk)
 @date 06/Jan/2014
 """
 
-from pythonlib.SimpleGlibProgram import SimpleGlibProgram
-from pythonlib.AnalyserControl import AnalyserControl
 import time
+import threading
 
-def cbc2SCurveRun( daqProgram, analysisControl, thresholds, temporaryOutputFilename="/tmp/cbc2SCurveRun_OutputFile.dat", silent=False ) :
-	daqProgram.startAllProcesses( forceRestart=True ) # forceRestart will kill the XDAQ processes first if they're running
-	daqProgram.waitUntilAllProcessesStarted();
-	daqProgram.initialise()
-	daqProgram.setOutputFilename( temporaryOutputFilename )
+class SCurveRun(threading.Thread) :
+	"""
+	Thread that will take an s-curve run. Once an instance has been constructed, call start()
+	to start in a separate thread. For most scripting purposes this isn't what you want; to run
+	in the current thread call run().
 	
+	If running in a separate thread you can set the "quit" member to true and the program will
+	stop whatever it's doing and finish.
 	
-	#
-	# Pause execution and make any additional changes to the configuration here if
-	# you want to. You can use the hyperdaq interface, and the changes will be sent
-	# to the board when configure() is called.
-	# Note that GlibSupervisor will reset the CBC I2C registers when it configures,
-	# so save any of that configuration until afterwards.
-	#
+	The statusCallback object provided in the constructor is a way for the thread to update you
+	about how far through it is. It should be an object with two methods:
+	@code
+		currentStatus( fractionComplete, statusString )
+		finished()
+	@endcode
+	currentStatus is called periodically to update you of the current status. The parameter
+	fractionComplete will be a number between 0 and 1 indicating how far through processing
+	the thread is. The parameter statusString is a string giving some brief information about
+	what's going on. The finished method is called as the last thing before the thread
+	terminates.
+	You can set statusCallback to None if you don't want any progress updates.
 	
-	daqProgram.configure()
+	daqProgram should be an instance of pythonlib.SimpleGlibProgram and analysisControl should
+	be an instance of pythonlib.AnalyserControl. Note that the analysisControl is not reset
+	beforehand so that you can add data on top of other data. If you have any incompatible data
+	(e.g. data taken with different settings) you should call reset on it before passing to the
+	constructor.
 	
-	for threshold in thresholds :
-		daqProgram.setAndSendI2c( { "VCth" : threshold } )
-		analysisControl.setThreshold( threshold )
+	thresholds is an array of numbers between 0 and 255 indicating the thresholds to test.
 	
-		daqProgram.play()
-		if not silent : print "Taking data at threshold "+str(threshold)
-		while daqProgram.streamer.acquisitionState()=="Running":
-			time.sleep(2)
+	@author Mark Grimes (mark.grimes@bristol.ac.uk)
+	@date 03/Feb/2014
+	"""
+	def __init__( self, statusCallback, daqProgram, analysisControl, thresholds, temporaryOutputFilename="/tmp/cbc2SCurveRun_OutputFile.dat" ) :
+		super(SCurveRun,self).__init__()
+		self.statusCallback=statusCallback
+		self.daqProgram=daqProgram
+		self.analysisControl=analysisControl
+		self.thresholds=thresholds
+		self.temporaryOutputFilename=temporaryOutputFilename
+		self.quit=False
+
+	def run( self ) :
+		try :
+			self.daqProgram.startAllProcesses( forceRestart=True ) # forceRestart will kill the XDAQ processes first if they're running
+			self.daqProgram.waitUntilAllProcessesStarted();
+			self.daqProgram.initialise()
+			self.daqProgram.setOutputFilename( self.temporaryOutputFilename )
+			
+			self.daqProgram.configure()
+			
+			for index in range(0,len(self.thresholds)) :
+				threshold=self.thresholds[index]
+				# If the user wants to be updated about progress, tell them how far through we are
+				if self.statusCallback!=None :
+					self.statusCallback.currentStatus( float(index)/float(len(self.thresholds)), "Taking data at threshold "+str(threshold) )
 		
-		daqProgram.pause()
-		analysisControl.analyseFile( temporaryOutputFilename )
-	
-	
-	daqProgram.killAllProcesses()
-	daqProgram.waitUntilAllProcessesKilled();
+				self.daqProgram.setAndSendI2c( { "VCth" : threshold } )
+				self.analysisControl.setThreshold( threshold )
+			
+				self.daqProgram.play()
+				while (not self.quit) and self.daqProgram.streamer.acquisitionState()=="Running":
+					time.sleep(2)
+				
+				self.daqProgram.pause()
+				if self.quit : break
+				self.analysisControl.analyseFile( self.temporaryOutputFilename )
+			
+			self.daqProgram.killAllProcesses()
+			self.daqProgram.waitUntilAllProcessesKilled();
+			# If the user wants to be update tell them we've finished.
+			if self.statusCallback!=None : self.statusCallback.finished()
+		except :
+			# If anything ever goes wrong, shut down the XDAQ processes before propagating the exception
+			self.daqProgram.killAllProcesses()
+			raise
 
 if __name__ == '__main__':
+	from pythonlib.SimpleGlibProgram import SimpleGlibProgram
+	from pythonlib.AnalyserControl import AnalyserControl
+
+	# Create an object to print the current status to the screen. This will
+	# be passed to the SCurveRun instance which will call these methods.
+	class PrintStatus(object) :
+		def currentStatus( self, fractionComplete, statusString ) :
+			print "%3d%% - %s"%(int(fractionComplete*100+0.5),statusString)
+		def finished( self ) :
+			print "Finished"
+	
 	daqProgram = SimpleGlibProgram( "GlibSuper.xml" )
+	# Temporary hack. At the moment I can't get this to run as myself so I'll start
+	# as the xtaldaq user
+	daqProgram.contexts[0].forcedEnvironmentVariables["USER"]="xtaldaq"
+	daqProgram.contexts[0].forcedEnvironmentVariables["SCRATCH"]="/tmp"
 	analysisControl = AnalyserControl( "127.0.0.1", "50000" )
-	cbc2SCurveRun( daqProgram, analysisControl, range(100,150) )
+	analysisControl.reset() # I might be connecting to an already running controller
+	
+	cbc2SCurveRun=SCurveRun( PrintStatus(), daqProgram, analysisControl, range(100,150) )
+	# I have no interest in running this in a separate thread (that's mostly for gui
+	# stuff) so I'll just call the run method directly. If I wanted to start it in a
+	# separate thread I'd call "start" instead.
+	cbc2SCurveRun.run()
+	
 	analysisControl.saveHistograms( "/tmp/histograms.root" )
 	print "Histograms saved to '/tmp/histograms.root'"
