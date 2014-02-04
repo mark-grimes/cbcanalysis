@@ -116,6 +116,7 @@ class SCurveRun(threading.Thread) :
 			self.daqProgram.killAllProcesses()
 			raise
 
+
 if __name__ == '__main__':
 	from pythonlib.SimpleGlibProgram import SimpleGlibProgram
 	from pythonlib.AnalyserControl import AnalyserControl
