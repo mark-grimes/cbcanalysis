@@ -71,7 +71,12 @@ class SCurveRunPanel :
 		def __init__( self, SCurveRunPanelInstance ) :
 			self.parentInstance=SCurveRunPanelInstance
 		def onRemoteResponse(self, response, request_info):
-			self.parentInstance.echo.setText( response["statusString"] )
+			self.parentInstance.echo.setText(response["statusString"] )
+			if response["fractionComplete"]<1:
+				self.parentInstance.launchButton.setEnabled(False)
+			else:
+				self.parentInstance.launchButton.setEnabled(True)
+				self.parentInstance.echo.setText("No data taking")
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server: "+str(message) )
 
