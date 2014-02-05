@@ -20,7 +20,8 @@ from pyjamas.Canvas import Color
 #from pyjamas.Canvas.SVGCanvas import SVGCanvas as Canvas
 from pyjamas.Canvas.ImageLoader import loadImages
 
-from pyjamas import Timer
+from pyjamas.Timer import Timer
+from datetime import datetime
 
 
 
@@ -70,9 +71,7 @@ class SCurveRunPanel :
 		def __init__( self, SCurveRunPanelInstance ) :
 			self.parentInstance=SCurveRunPanelInstance
 		def onRemoteResponse(self, response, request_info):
-			self.parentInstance.echo.setText( response["fractionComplete"] )
-			#self.parentInstance.timer.scheduleRepeating(1000) # ms
-			
+			self.parentInstance.echo.setText( response["statusString"] )
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server: "+str(message) )
 
@@ -85,8 +84,6 @@ class SCurveRunPanel :
 		self.mainPanel.setSpacing(15)
 		
 		self.controlValueEntries={} #controls the parameters of the s-curve
-		
-		self.timer = Timer(self.updateStatusButton)
 
 		#self.graphCanvas=GraphCanvas(self)
 		
@@ -104,22 +101,18 @@ class SCurveRunPanel :
 		self.launchButton.addClickListener(self)
 		self.launchButton.setEnabled(True)
 		
-		self.getStatusButton=Button("Get Status")
-		self.getStatusButton.addClickListener(self)
-		self.getStatusButton.setEnabled(True)
-		
 		self.mainPanel.add(self.mainSettings)
 		self.mainPanel.add(self.startButton)
 		self.mainPanel.add(self.launchButton)
-		self.mainPanel.add(self.getStatusButton)
 		self.mainPanel.add(self.echo)
+		
+				
+		self.timer = Timer(notify=self.updateStatus)
+		self.timer.scheduleRepeating(1000)	
 		
 		#self.canvasPanel.add(graphCanvas)
 		
 		#self.mainPanel.add(self.drawCanvas(self))
-	
-	def updateStatusButton(self):
-		self.echo.setText("Yelp")
 	
 	def onChange( self, sender ) :
 		pass
@@ -128,11 +121,10 @@ class SCurveRunPanel :
 		#self.echo.setText("Clicked")
 		if sender==self.launchButton :
 			self.rpcService.startSCurveRun( None, SCurveRunPanel.DoNothingListener() )
-		elif sender==self.getStatusButton :
 			self.echo.setText("Querying")
-			self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
 			
-			
+	def updateStatus(self):
+		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
 		
 	def getPanel(self) :
 		return self.mainPanel

@@ -18,7 +18,7 @@ from pyjamas.ui.CheckBox import CheckBox
 from pyjamas.ui.Button import Button
 from pyjamas.ui.HTML import HTML
 
-from pyjamas import Timer
+from pyjamas.Timer import Timer
 from datetime import datetime
 
 class I2CPanel :
@@ -141,11 +141,6 @@ class I2CPanel :
 		self.mainSettings.add()
 		self.echo=Label()
 		self.mainPanel.add(self.echo)
-		
-		timer = Timer(updateStatus)
-		
-		#timer.scheduleRepeating(1000)
-		#self.timer.schedule(1000)
 
 	def getPanel( self ) :
 		return self.mainPanel
@@ -304,10 +299,6 @@ class I2CPanel :
 		
 		return vertPanel
 	
-	def updateStatus(self):
-		dt = datetime.now().replace(microsecond=0)
-		self.echo.setText(dt)
-		
 	def onClick(self, sender) :
 		if sender == self.save:
 			#self.rpcService.saveStateValues(self.fileName, I2CPanel.saveStateListener(self) ) 
