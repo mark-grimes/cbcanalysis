@@ -18,6 +18,9 @@ from pyjamas.ui.CheckBox import CheckBox
 from pyjamas.ui.Button import Button
 from pyjamas.ui.HTML import HTML
 
+from pyjamas import Timer
+from datetime import datetime
+
 class I2CPanel :
 	
 	class saveStateListener :
@@ -136,11 +139,13 @@ class I2CPanel :
 		self.channelTrims.add( self.createRegisterPanel(["Channel001","Channel002","Channel003","Channel004","Channel005","Channel006","Channel007","Channel008","Channel009","Channel010","Channel011","Channel012","Channel013","Channel014","Channel015","Channel016","Channel017","Channel018","Channel019","Channel020","Channel021","Channel022","Channel023","Channel024","Channel025","Channel026","Channel027","Channel028","Channel029","Channel030","Channel031","Channel032","Channel033","Channel034","Channel035","Channel036","Channel037","Channel038","Channel039","Channel040","Channel041","Channel042","Channel043","Channel044","Channel045","Channel046","Channel047","Channel048","Channel049","Channel050","Channel051","Channel052","Channel053","Channel054","Channel055","Channel056","Channel057","Channel058","Channel059","Channel060","Channel061","Channel062","Channel063","Channel064","Channel065","Channel066","Channel067","Channel068","Channel069","Channel070","Channel071","Channel072","Channel073","Channel074","Channel075","Channel076","Channel077","Channel078","Channel079","Channel080","Channel081","Channel082","Channel083","Channel084","Channel085","Channel086","Channel087","Channel088","Channel089","Channel090","Channel091","Channel092","Channel093","Channel094","Channel095","Channel096","Channel097","Channel098","Channel099","Channel100","Channel101","Channel102","Channel103","Channel104","Channel105","Channel106","Channel107","Channel108","Channel109","Channel110","Channel111","Channel112","Channel113","Channel114","Channel115","Channel116","Channel117","Channel118","Channel119","Channel120","Channel121","Channel122","Channel123","Channel124","Channel125","Channel126","Channel127","Channel128","Channel129","Channel130","Channel131","Channel132","Channel133","Channel134","Channel135","Channel136","Channel137","Channel138","Channel139","Channel140","Channel141","Channel142","Channel143","Channel144","Channel145","Channel146","Channel147","Channel148","Channel149","Channel150","Channel151","Channel152","Channel153","Channel154","Channel155","Channel156","Channel157","Channel158","Channel159","Channel160","Channel161","Channel162","Channel163","Channel164","Channel165","Channel166","Channel167","Channel168","Channel169","Channel170","Channel171","Channel172","Channel173","Channel174","Channel175","Channel176","Channel177","Channel178","Channel179","Channel180","Channel181","Channel182","Channel183","Channel184","Channel185","Channel186","Channel187","Channel188","Channel189","Channel190","Channel191","Channel192","Channel193","Channel194","Channel195","Channel196","Channel197","Channel198","Channel199","Channel200","Channel201","Channel202","Channel203","Channel204","Channel205","Channel206","Channel207","Channel208","Channel209","Channel210","Channel211","Channel212","Channel213","Channel214","Channel215","Channel216","Channel217","Channel218","Channel219","Channel220","Channel221","Channel222","Channel223","Channel224","Channel225","Channel226","Channel227","Channel228","Channel229","Channel230","Channel231","Channel232","Channel233","Channel234","Channel235","Channel236","Channel237","Channel238","Channel239","Channel240","Channel241","Channel242","Channel243","Channel244","Channel245","Channel246","Channel247","Channel248","Channel249","Channel250","Channel251","Channel252","Channel253","Channel254","ChannelDummy"]) )
 		
 		self.mainSettings.add()
-		
 		self.echo=Label()
 		self.mainPanel.add(self.echo)
-		# Set the text in the text boxes to the values in the registers
-#		self.rpcService.I2CRegisterValues( 'FE0CBC0', I2CPanel.ReadRegisterValueListener(self.i2cValueEntries) ) # Ask the server what the register values are
+		
+		timer = Timer(updateStatus)
+		
+		#timer.scheduleRepeating(1000)
+		#self.timer.schedule(1000)
 
 	def getPanel( self ) :
 		return self.mainPanel
@@ -172,7 +177,7 @@ class I2CPanel :
 				for cbcName in self.getActiveCBCs() :
 					messageParameters[cbcName]={ sender.getTitle():value }
 				self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener(self) )
-				self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )#Live refresh of the status box
+				self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )# Live refresh of the status box
 				
 				
 			except ValueError:
@@ -211,7 +216,7 @@ class I2CPanel :
 				selectedCBCs.append(self.cbcList.getItemText(i))
 		return selectedCBCs
 	
-	def getCheckedStates(self): #returns the checked boxes + filename
+	def getCheckedStates(self): # returns the checked boxes + filename
 		selectedStates = []
 		for names in self.stateValueEntries:
 			if str(self.stateValueEntries[names].isChecked())=="True":
@@ -298,11 +303,15 @@ class I2CPanel :
 		vertPanel.add(launch)
 		
 		return vertPanel
+	
+	def updateStatus(self):
+		dt = datetime.now().replace(microsecond=0)
+		self.echo.setText(dt)
 		
 	def onClick(self, sender) :
 		if sender == self.save:
-			self.rpcService.saveStateValues(self.fileName, I2CPanel.saveStateListener(self) ) 
-			
+			#self.rpcService.saveStateValues(self.fileName, I2CPanel.saveStateListener(self) ) 
+			pass
 		elif sender == self.load:
 			self.rpcService.loadStateValues(self.fileName, I2CPanel.DoNothingListener(self) )
 			

@@ -20,6 +20,11 @@ from pyjamas.Canvas import Color
 #from pyjamas.Canvas.SVGCanvas import SVGCanvas as Canvas
 from pyjamas.Canvas.ImageLoader import loadImages
 
+from pyjamas import Timer
+
+
+
+
 class SCurveRunPanel :
 	
 	class onClickListener :
@@ -44,7 +49,6 @@ class SCurveRunPanel :
 			
 		def onRemoteResponse(self, response, request_info):
 			self._controlPanel.launchButton.setEnabled(False)
-			self._controlPanel.echoSelection()
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -66,7 +70,9 @@ class SCurveRunPanel :
 		def __init__( self, SCurveRunPanelInstance ) :
 			self.parentInstance=SCurveRunPanelInstance
 		def onRemoteResponse(self, response, request_info):
-			self.parentInstance.echo.setText( response["statusString"] )
+			self.parentInstance.echo.setText( response["fractionComplete"] )
+			#self.parentInstance.timer.scheduleRepeating(1000) # ms
+			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server: "+str(message) )
 
@@ -80,10 +86,11 @@ class SCurveRunPanel :
 		
 		self.controlValueEntries={} #controls the parameters of the s-curve
 		
+		self.timer = Timer(self.updateStatusButton)
 
-		self.graphCanvas=GraphCanvas(self)
+		#self.graphCanvas=GraphCanvas(self)
 		
-		self.rpcService.getSCurveValues( )	
+		#self.rpcService.getSCurveValues( )	
 		
 		self.mainSettings=VerticalPanel("Control Settings")
 		self.startButton=VerticalPanel("Run Button")
@@ -91,7 +98,7 @@ class SCurveRunPanel :
 		
 		self.mainSettings.add(self.createControlPanel(["RangeLo","RangeHi","Steps","FileName"]))
 		
-		self.echo=Label()
+		self.echo=Label() # A good print screen method
 		
 		self.launchButton=Button("Launch Now")
 		self.launchButton.addClickListener(self)
@@ -110,25 +117,22 @@ class SCurveRunPanel :
 		#self.canvasPanel.add(graphCanvas)
 		
 		#self.mainPanel.add(self.drawCanvas(self))
-		
 	
-	def echoSelection(self): #fb - a good "print screen" method
-		msg = " You pressed: "
-		#value =	self.controlValueEntries.keys()
-		#msg = value
-			
-		self.echo.setText(msg)	
+	def updateStatusButton(self):
+		self.echo.setText("Yelp")
 	
 	def onChange( self, sender ) :
 		pass
 		
 	def onClick(self, sender):
-		self.echo.setText("Clicked")
+		#self.echo.setText("Clicked")
 		if sender==self.launchButton :
 			self.rpcService.startSCurveRun( None, SCurveRunPanel.DoNothingListener() )
 		elif sender==self.getStatusButton :
 			self.echo.setText("Querying")
 			self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
+			
+			
 		
 	def getPanel(self) :
 		return self.mainPanel
@@ -167,11 +171,6 @@ class SCurveRunPanel :
 			label.setWidth(maxWidth)
 
 		return flowPanel
-	
-	#def canvas(self):
-	#	self.width=500
-	#	self.height=400
-	#	self.canvasName="S Curve"
 		
 class GraphCanvas: #broken at the moment - fb
 	

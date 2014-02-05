@@ -137,6 +137,15 @@ class GlibControlService:
 		registerNameValueTuple = msg[chipNames[0]]
 		return self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
 	
+	def saveStateValues(self, msg):
+		state = self.program.supervisor.I2CRegisterValues()
+		chipNames = state.keys()
+		registerNameValueTuple = state[chipNames[0]]
+		return msg
+	
+	def loadStateValues(self, msg):
+		return msg
+	
 	def startProcesses(self, msg):
 		"""
 		Starts all of the XDAQ processes
