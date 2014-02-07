@@ -135,7 +135,26 @@ class GlibControlService:
 
 		chipNames = msg.keys()
 		registerNameValueTuple = msg[chipNames[0]]
+
+
 		return self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
+	
+	def saveStateValues(self, msg):
+		
+		state = self.program.supervisor.I2CRegisterValues()
+		chipNames = state.keys()
+		registerNameValueTuple = state[chipNames[0]]
+		
+	#	with open("/tmp/test.txt", 'w') as thefile:
+			#for item in msg:
+				#thefile.write("%s\n" %msg[item])
+			#thefile.write(registerNameValueTuple)
+	#	thefile.close()
+		
+		return msg
+	
+	def loadStateValues(self, msg):
+		return msg
 	
 	def startProcesses(self, msg):
 		"""

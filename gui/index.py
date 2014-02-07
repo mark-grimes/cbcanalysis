@@ -130,8 +130,9 @@ class Client:
 class GlibControlService(JSONProxy):
 	def __init__(self):
 		JSONProxy.__init__(self, "services/GlibControlProxy.py", ["getStates","connectedCBCNames",
-			"I2CRegisterValues","setI2CRegisterValues","startProcesses","killProcesses","boardIsReachable",
+			"I2CRegisterValues","setI2CRegisterValues","saveStateValues","loadStateValues","startProcesses","killProcesses","boardIsReachable",
 			"stopTakingData","startSCurveRun","getDataTakingStatus"] )
+
 
 if __name__ == "__main__" :
 	app = Client()

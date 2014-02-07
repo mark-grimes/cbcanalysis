@@ -14,15 +14,31 @@ from pyjamas.ui.TextBox import TextBox
 from ErrorMessage import ErrorMessage
 from pyjamas.ui.Button import Button
 
+from pyjamas.Canvas.GWTCanvas import GWTCanvas as Canvas
+from pyjamas.ui.Composite import Composite
+from pyjamas.Canvas import Color
+#from pyjamas.Canvas.SVGCanvas import SVGCanvas as Canvas
+from pyjamas.Canvas.ImageLoader import loadImages
+
+from pyjamas.Timer import Timer
+from datetime import datetime
+
+
+
+
 class SCurveRunPanel :
 	
 	class onClickListener :
 		def __init__(self, panel) :
-			self._ClickPanel=panel
-			self._ClickPanel.launchButton.setEnabled(False)
+			self._ClickPanel=panel	
 			
 		def onRemoteResponse(self, response, request_info):
-			self._ClickPanel.launchButton.setEnabled(False)
+			#self._ClickPanel.launchButton.setEnabled(False)
+			for buttonName in self._ClickPanel.controlValueEntries:
+				pass
+				#self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
+			#self._ClickPanel.controlValueEntries["RangeHi"].setText(response.keys()[1])	
+			#self._ClickPanel.launchButton.setEnabled(True)
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -35,7 +51,6 @@ class SCurveRunPanel :
 			
 		def onRemoteResponse(self, response, request_info):
 			self._controlPanel.launchButton.setEnabled(False)
-			self._controlPanel.echoSelection()
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -57,7 +72,12 @@ class SCurveRunPanel :
 		def __init__( self, SCurveRunPanelInstance ) :
 			self.parentInstance=SCurveRunPanelInstance
 		def onRemoteResponse(self, response, request_info):
-			self.parentInstance.echo.setText( response["statusString"] )
+			self.parentInstance.echo.setText(response["statusString"] )
+			if response["fractionComplete"]<1:
+				self.parentInstance.launchButton.setEnabled(False)
+			else:
+				self.parentInstance.launchButton.setEnabled(True)
+				self.parentInstance.echo.setText("No data taking")
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server: "+str(message) )
 
@@ -70,16 +90,18 @@ class SCurveRunPanel :
 		self.mainPanel.setSpacing(15)
 		
 		self.controlValueEntries={} #controls the parameters of the s-curve
+
+		#self.graphCanvas=GraphCanvas(self)
 		
+		#self.rpcService.getSCurveValues( )	
 		
-		self.mainSettings=DisclosurePanel("Control Settings")
+		self.mainSettings=VerticalPanel("Control Settings")
 		self.startButton=VerticalPanel("Run Button")
+		self.canvasPanel=VerticalPanel("Canvas")
 		
 		self.mainSettings.add(self.createControlPanel(["RangeLo","RangeHi","Steps","FileName"]))
 		
-		
-		self.echo=Label()
-		
+		self.echo=Label() # A good print screen method
 		
 		self.launchButton=Button("Launch Now")
 		self.launchButton.addClickListener(self)
@@ -95,24 +117,30 @@ class SCurveRunPanel :
 		self.mainPanel.add(self.getStatusButton)
 		self.mainPanel.add(self.echo)
 		
-	
-	def echoSelection(self): #fb - a good "print screen" method
-		msg = " You pressed: "
-		msg += str(self.controlValueEntries)
-			
-		self.echo.setText(msg)	
+				
+		self.timer = Timer(notify=self.updateStatus)
+		self.timer.scheduleRepeating(500)	
+		
+		#self.canvasPanel.add(graphCanvas)
+		
+		#self.mainPanel.add(self.drawCanvas(self))
 	
 	def onChange( self, sender ) :
 		pass
 		
 	def onClick(self, sender):
-		self.echo.setText("Clicked")
+		self.msg = {"RangeLo":50, "RangeHi" :150, "Steps":1, "FileName":"test.png"}
+		
 		if sender==self.launchButton :
-			self.rpcService.startSCurveRun( None, SCurveRunPanel.DoNothingListener() )
-		elif sender==self.getStatusButton :
 			self.echo.setText("Querying")
-			self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
-
+			self.rpcService.startSCurveRun(None, SCurveRunPanel.DoNothingListener() )		
+			
+	def updateStatus(self):
+		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
+		#a={}
+		#for name in self.controlValueEntries:
+			#a[name]=self.controlValueEntries[name]
+		#self.echo.setText(int(a["RangeLo"].getText()))
 		
 	def getPanel(self) :
 		return self.mainPanel
@@ -128,11 +156,12 @@ class SCurveRunPanel :
 			newTextBox.setEnabled(True)
 			newTextBox.setWidth(80)
 			newPanel.add(newTextBox)	
+			if buttonName=="RangeLo": newTextBox.setText("100") # Default values
+			elif buttonName=="RangeHi": newTextBox.setText("150")
+			elif buttonName=="Steps": newTextBox.setText("1")
+			elif buttonName=="FileName": newTextBox.setText("TestRun.png")
 			
-			if buttonName=="FileName":
-				newTextBox.setText("TestRun.png")
-			else: newTextBox.setText("0")
-			newTextBox.addChangeListener(self)
+			#newTextBox.addChangeListener(self)
 			newTextBox.setTitle(buttonName) 
 			
 			self.controlValueEntries[buttonName]=newTextBox	
@@ -151,8 +180,25 @@ class SCurveRunPanel :
 
 		return flowPanel
 		
+class GraphCanvas: #broken at the moment - fb
 	
-
+	def __init__(self):
+		self.canvas = Canvas(self, 500, 500, 500, 500)
+		self.canvasName="S Curve"
+		#loadImages(['Three_Colours-Blue-Coffee-Sugar.jpg'], self)
+		
+	def draw (self):
+		#self.saveContext()
+		#self.drawImage(self.earth.getElement() ,-12,-12)
+		pass
+		
+		
+	def onImagesLoaded(self, imagesHandles):
+		#self.img = imagesHandles[0]
+		self.draw()			
+	
+	def onError(self):
+		pass
 	
 
 

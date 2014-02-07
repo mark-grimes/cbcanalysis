@@ -82,7 +82,7 @@ class SCurveRun(threading.Thread) :
 				threshold=self.thresholds[index]
 				# If the user wants to be updated about progress, tell them how far through we are
 				if self.statusCallback!=None :
-					self.statusCallback.currentStatus( float(index)/float(len(self.thresholds)), "Taking data at threshold "+str(threshold) )
+					self.statusCallback.currentStatus( float(index)/float(len(self.thresholds)-1), "Taking data at threshold "+str(threshold) )
 		
 				self.daqProgram.setAndSendI2c( { "VCth" : threshold } )
 				self.analysisControl.setThreshold( threshold )
