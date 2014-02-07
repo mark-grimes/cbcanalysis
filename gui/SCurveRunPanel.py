@@ -35,7 +35,8 @@ class SCurveRunPanel :
 		def onRemoteResponse(self, response, request_info):
 			#self._ClickPanel.launchButton.setEnabled(False)
 			for buttonName in self._ClickPanel.controlValueEntries:
-				self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
+				pass
+				#self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
 			#self._ClickPanel.controlValueEntries["RangeHi"].setText(response.keys()[1])	
 			#self._ClickPanel.launchButton.setEnabled(True)
 			
@@ -113,7 +114,7 @@ class SCurveRunPanel :
 		
 				
 		self.timer = Timer(notify=self.updateStatus)
-		self.timer.scheduleRepeating(1000)	
+		self.timer.scheduleRepeating(500)	
 		
 		#self.canvasPanel.add(graphCanvas)
 		
@@ -123,13 +124,18 @@ class SCurveRunPanel :
 		pass
 		
 	def onClick(self, sender):
-		#self.echo.setText("Clicked")
+		self.msg = {"RangeLo":50, "RangeHi" :150, "Steps":1, "FileName":"test.png"}
+		
 		if sender==self.launchButton :
-			self.rpcService.startSCurveRun( None, SCurveRunPanel.DoNothingListener() )
 			self.echo.setText("Querying")
+			self.rpcService.startSCurveRun(None, SCurveRunPanel.DoNothingListener() )		
 			
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
+		#a={}
+		#for name in self.controlValueEntries:
+			#a[name]=self.controlValueEntries[name]
+		#self.echo.setText(int(a["RangeLo"].getText()))
 		
 	def getPanel(self) :
 		return self.mainPanel
