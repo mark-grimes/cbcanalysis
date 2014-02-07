@@ -29,6 +29,7 @@
 
 
 import sys, os, inspect, socket, time, signal
+import cPickle as pickle
 from CGIHandlerFromStrings import CGIHandlerFromStrings
 
 # The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
@@ -141,20 +142,28 @@ class GlibControlService:
 	
 	def saveStateValues(self, msg):
 		
-		state = self.program.supervisor.I2CRegisterValues()
-		chipNames = state.keys()
-		registerNameValueTuple = state[chipNames[0]]
+		saveState = self.program.supervisor.I2CRegisterValues()
+		chipNames = saveState.keys()
+		registerNameValueTuple = saveState[chipNames[0]]
 		
-	#	with open("/tmp/test.txt", 'w') as thefile:
-			#for item in msg:
-				#thefile.write("%s\n" %msg[item])
-			#thefile.write(registerNameValueTuple)
-	#	thefile.close()
+		with open("/tmp/"+msg, 'wb') as writeFile:
+			pickle.dump( saveState, writeFile)
+		writeFile.close()
 		
 		return msg
 	
 	def loadStateValues(self, msg):
-		return msg
+		
+		with open("/tmp/DatFile.txt", 'rb') as readFile:
+			loadState = pickle.load(readFile)
+		readFile.close()
+		
+		chipNames = loadState.keys()
+		registerNameValueTuple = loadState[chipNames[0]]
+		
+		self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
+		
+		return loadState
 	
 	def startProcesses(self, msg):
 		"""
