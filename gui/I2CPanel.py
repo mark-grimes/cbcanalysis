@@ -191,7 +191,7 @@ class I2CPanel :
 				for cbcName in self.getActiveCBCs() :
 					messageParameters[cbcName]={ sender.getTitle():value }
 					self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener(self) )
-					self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )# Live refresh of the status box
+					#self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )# Live refresh of the status box
 					
 			
 			

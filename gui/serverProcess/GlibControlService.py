@@ -128,6 +128,9 @@ class GlibControlService:
 		return self.program.supervisor.connectedCBCNames()
 	
 	def I2CRegisterValues(self, msg):
+		
+		self.activeCBCs = msg
+		
 		return self.program.supervisor.I2CRegisterValues(msg)
 			
 	def setI2CRegisterValues(self, msg):
@@ -142,7 +145,7 @@ class GlibControlService:
 	
 	def saveStateValues(self, msg):
 		
-		saveState = self.program.supervisor.I2CRegisterValues()
+		saveState = self.program.supervisor.I2CRegisterValues(self.activeCBCs)
 		
 		with open("/tmp/"+msg, 'wb') as writeFile:
 			pickle.dump( saveState, writeFile)
@@ -156,12 +159,9 @@ class GlibControlService:
 			loadState = pickle.load(readFile)
 		readFile.close()
 		
-		chipNames = loadState.keys()
+		chipNames = self.activeCBCs
 		registerNameValueTuple = loadState[chipNames[0]]
 		
-		self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
-		
-		registerNameValueTuple = loadState[chipNames[1]]
 		self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
 		
 		return loadState
