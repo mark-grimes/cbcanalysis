@@ -18,10 +18,12 @@ from pyjamas.ui.TextBox import TextBox
 from pyjamas.JSONService import JSONProxy
 from pyjamas.ui.CSS import StyleSheetCssFile
 from pyjamas.ui.DialogBox import DialogBox
+from pyjamas.ui import HasHorizontalAlignment
+
 from I2CPanel import I2CPanel
 from OccupancyCheckPanel import OccupancyCheckPanel
 from SCurveRunPanel import SCurveRunPanel
-
+from DataRunManager import DataRunManager
 from ErrorMessage import ErrorMessage
 
 class Client:
@@ -35,16 +37,33 @@ class Client:
 		self.status=Label()
 		
 		# This is the remote service
-		self.remote_server = GlibControlService()
-		self.I2CPanel=I2CPanel(self.remote_server)
-		self.SCurveRunPanel=SCurveRunPanel(self.remote_server)
-		self.OccupancyCheckPanel=OccupancyCheckPanel(self.remote_server)
+		self.I2CPanel=I2CPanel()
+		self.SCurveRunPanel=SCurveRunPanel()
+		self.OccupancyCheckPanel=OccupancyCheckPanel()
 
 		# mainPanel will have all of the working stuff in it
 		self.mainPanel=DockPanel()
 		#self.mainPanel.setSpacing(10)
-		self.mainPanel.add( HTML(r"CBC Test Stand (v1.1)", StyleName="titleStyle"), DockPanel.NORTH )
+		titleBar=HorizontalPanel()
+		titleBar.add( HTML(r"CBC Test Stand (v1.1)", StyleName="titleStyle") )
+		self.stopTakingDataButton=Button("Stop taking data")
+		self.stopTakingDataButton.addClickListener(self)
+		self.dataTakingPercentage=HTML('0%')
+		self.dataTakingStatus=HTML('Initiating...')
+		titleBar.add(self.dataTakingPercentage)
+		titleBar.add(self.dataTakingStatus)
+		titleBar.add(self.stopTakingDataButton)
+		titleBar.setCellHorizontalAlignment( self.dataTakingStatus, HasHorizontalAlignment.ALIGN_RIGHT )
+		titleBar.setCellHorizontalAlignment( self.dataTakingPercentage, HasHorizontalAlignment.ALIGN_RIGHT )
+		titleBar.setCellHorizontalAlignment( self.stopTakingDataButton, HasHorizontalAlignment.ALIGN_RIGHT )
+		titleBar.setWidth("100%")
+		self.mainPanel.add( titleBar, DockPanel.NORTH )
 		selectionPanel=VerticalPanel()
+		
+		# Register to get updates about the status of data taking, so that
+		# I can update the information in the title bar
+		self.dataRunManager=DataRunManager.instance()
+		self.dataRunManager.registerEventHandler( self )
 		
 		self.activePanelButton=None
 		self.activePanel=None
@@ -63,36 +82,37 @@ class Client:
 
 		self.mainPanel.add( selectionPanel, DockPanel.WEST )
 		
-#		self.I2CPanel.getPanel().setStyleName("selectedAreaStyle")
-#		self.mainPanel.add( self.I2CPanel.getPanel(), DockPanel.CENTER )
-				
 		self.mainPanel.add( self.status, DockPanel.SOUTH )
 		RootPanel().add(self.mainPanel)
 
 		self.setNewMainPanel( self.registersButton )
 		
-#		try:
-#			if self.remote_server.I2CRegisterValues( None, self ) < 0:
-#				self.status.setText(self.TEXT_ERROR)
-#			else : self.status.setText( "Message sent" )
-#
-#		except Exception as error:
-#			self.status.setText("Client exception was thrown: '"+str(error.__class__)+"'='"+str(error)+"'")
-		
+	def onDataTakingEvent( self, eventCode, details ) :
+		"""
+		Method that receives updates from DataRunManager
+		"""
+		if eventCode==DataRunManager.DataTakingStartedEvent :
+			self.stopTakingDataButton.setEnabled(True)
+			self.dataTakingPercentage.setText("0%")
+			self.dataTakingStatus.setText( "Starting run..." )
+		elif eventCode==DataRunManager.DataTakingFinishedEvent :
+			self.stopTakingDataButton.setEnabled(False)
+			self.dataTakingPercentage.setText("")
+			self.dataTakingStatus.setText( "Not taking data" )
+		elif eventCode==DataRunManager.DataTakingStatusEvent :
+			self.stopTakingDataButton.setEnabled(True)
+			self.dataTakingPercentage.setText("%3d%%"%int(details['fractionComplete']*100+0.5) )
+			self.dataTakingStatus.setText( details['statusString'] )
+
 	def onClick(self, sender):
 		# (data, response_class): if the latter is 'self', then
 		# the response is handled by the self.onRemoteResponse() method
 		try:
-			self.setNewMainPanel( sender )
-#			if sender == self.getStates_py :
-#				if self.remote_server.getStates( None, self ) < 0:
-#					self.status.setText(self.TEXT_ERROR)
-#			elif sender == self.startProcesses_py :
-#				if self.remote_server.startProcesses( None, self ) < 0:
-#					self.status.setText(self.TEXT_ERROR)
-#			elif sender == self.killProcesses_py :
-#				if self.remote_server.killProcesses( None, self ) < 0:
-#					self.status.setText(self.TEXT_ERROR)
+			if sender == self.stopTakingDataButton :
+				self.dataRunManager.stopTakingData()
+			else :
+				# I don't have any other buttons so it must be a panel change
+				self.setNewMainPanel( sender )
 
 		except Exception as error:
 			self.status.setText("Client exception was thrown: '"+str(error.__class__)+"'='"+str(error)+"'")
@@ -118,6 +138,7 @@ class Client:
 		
 		# Set the new main panel
 		self.activePanel.getPanel().setStyleName( "selectedAreaStyle" )
+		self.activePanel.getPanel().setWidth("100%")
 		self.mainPanel.add( self.activePanel.getPanel(), DockPanel.CENTER )
 
 	def onRemoteResponse(self, response, request_info):
@@ -125,13 +146,6 @@ class Client:
 
 	def onRemoteError(self, code, message, request_info):
 		ErrorMessage( "Unable to contact server" )
-
-# AJAX calls must come from the same server, only the path is given here
-class GlibControlService(JSONProxy):
-	def __init__(self):
-		JSONProxy.__init__(self, "services/GlibControlProxy.py", ["getStates","connectedCBCNames",
-			"I2CRegisterValues","setI2CRegisterValues","saveStateValues","loadStateValues","startProcesses","killProcesses","boardIsReachable",
-			"stopTakingData","startSCurveRun","getDataTakingStatus"] )
 
 
 if __name__ == "__main__" :
