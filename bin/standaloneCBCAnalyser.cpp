@@ -226,6 +226,37 @@ namespace
 				}
 			}
 		}
+		else if( resource=="/occupancies" )
+		{
+			// At the moment I'm just going to return the occupancies for the first threshold
+			// that is stored for each channel. Later I'll code up some option to specify
+			// which threshold you want the occupancies for.
+			output << "{" << "\n";
+			std::vector<size_t> channelIndices=connectedCBCSCurves_.getValidChannelIndices();
+			for( std::vector<size_t>::const_iterator iIndexA=channelIndices.begin(); iIndexA!=channelIndices.end(); ++iIndexA )
+			{
+				output << "   \"CBC " << std::setfill('0') << std::setw(2)  << *iIndexA << "\": {" << "\n";
+				cbcanalyser::FedChannelSCurves& fedChannel=connectedCBCSCurves_.getFedChannelSCurves(*iIndexA);
+				std::vector<size_t> stripIndices=fedChannel.getValidStripIndices();
+				for( std::vector<size_t>::const_iterator iIndexB=stripIndices.begin(); iIndexB!=stripIndices.end(); ++iIndexB )
+				{
+					cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(*iIndexB);
+					std::vector<float> validThresholds=sCurve.getValidThresholds();
+					if( !validThresholds.empty() )
+					{
+						cbcanalyser::SCurveEntry& firstEntry=sCurve.getEntry( validThresholds.front() );
+						output << "      \"Channel " << std::setfill('0') << std::setw(3)  << *iIndexB << "\": " << firstEntry.fraction();
+						if( iIndexB+1 != stripIndices.end() ) output << ",";
+						output << "\n";
+					}
+				}
+				output << "   }";
+				if( iIndexA+1 != channelIndices.end() ) output << ",";
+				output << "\n";
+			}
+			output << "}" << "\n";
+			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+		}
 		else if( resource=="/fitParameters" )
 		{
 			output << "{" << "\n";
@@ -253,6 +284,7 @@ namespace
 				output << "\n";
 			}
 			output << "}" << "\n";
+			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
 		}
 		else if( resource=="/reset" )
 		{
