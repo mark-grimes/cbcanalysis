@@ -189,6 +189,17 @@ const cbcanalyser::SCurveEntry& cbcanalyser::SCurve::getEntry( float threshold )
 	return findResult->second;
 }
 
+const std::vector<float> cbcanalyser::SCurve::getValidThresholds() const
+{
+	std::vector<float> returnValue;
+	for( const auto& thresholdEntryPair : entries_ )
+	{
+		returnValue.push_back( thresholdEntryPair.first );
+	}
+
+	return returnValue;
+}
+
 size_t cbcanalyser::SCurve::size() const
 {
 	return entries_.size();
