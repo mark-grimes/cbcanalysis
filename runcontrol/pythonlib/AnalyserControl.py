@@ -15,7 +15,8 @@ class AnalyserControl :
 		try :
 			# Try and connect to see if the process is running. If it isn't, I'll have
 			# to start it. Remove any data that has been left over from a previous run.
-			self.httpGetRequest( "reset" )
+			#self.httpGetRequest( "reset" )
+			self.httpGetRequest( "version" )
 		except:
 			if startServerIfNotRunning :
 				import subprocess
@@ -96,6 +97,34 @@ class AnalyserControl :
 					# The C++ code might not now about the channel and not return it. I need
 					# the array to be the correct size though so I'll just add 'None'.
 					arrayOfChannels.append( None )
+			result[pythonCbcName]=arrayOfChannels
+
+		return result
+
+	def occupancies( self ) :
+		jsonString=self.httpGetRequest( "occupancies", returnResponse=True )
+		analysisResult=json.loads( jsonString )
+		# The CBC code indexes CBCs differently. I'll rearrange this structure to match
+		# the python code.
+		result={}
+		for cbcName in analysisResult.keys() :
+			if cbcName=='CBC 00' : pythonCbcName='FE0CBC0'
+			elif cbcName=='CBC 01' : pythonCbcName='FE0CBC1'
+			elif cbcName=='CBC 02' : pythonCbcName='FE1CBC0'
+			elif cbcName=='CBC 03' : pythonCbcName='FE1CBC1'
+			else : pythonCbcName=cbcName
+			# The C++ code doesn't know if a CBC is connected or not, since unconnected CBCs
+			# show up in the DAQ dumps as all on channels. I need to check whether these are
+			# actually connected.
+			arrayOfChannels=[]
+			for channelNumber in range(0,254) :
+				channelName="Channel %03d"%channelNumber
+				try:
+					arrayOfChannels.append( analysisResult[cbcName][channelName] )
+				except KeyError:
+					# The C++ code might not now about the channel and not return it. I need
+					# the array to be the correct size though so I'll just add 'None'.
+					arrayOfChannels.append( -1 )
 			result[pythonCbcName]=arrayOfChannels
 
 		return result
