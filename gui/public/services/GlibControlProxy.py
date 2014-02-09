@@ -42,6 +42,9 @@ if __name__ == '__main__':
 	
 	contLen=int(os.environ['CONTENT_LENGTH'])
 	data = sys.stdin.read(contLen)
+	if logging:
+		logFile=open('/tmp/proxyDumpFile.log','a')
+		logFile.write(data+"\n")
 	data=listeningAddress+"\n"+str(len(data))+"\n"+data
 	client.send(data)
 	
@@ -56,7 +59,6 @@ if __name__ == '__main__':
 	datagram = response.recv( packetSize )
 	message=datagram[firstNewlinePosition+1:]
 	if logging:
-		logFile=open('/tmp/proxyDumpFile.log','a')
 		logFile.write(message)
 
 	sys.stdout.write(message)
