@@ -42,6 +42,8 @@ from pythonlib.SimpleGlibProgram import SimpleGlibProgram
 from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import SCurveRun
 
+
+
 class GlibControlService:
 	"""
 	Class that invokes the Glib control methods in response to JSON RPC calls.
@@ -163,8 +165,12 @@ class GlibControlService:
 		registerNameValueTuple = loadState[chipNames[0]]
 		
 		self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
-		
 		return loadState
+	
+	def loadImage(self, msg):
+		#image = Image.open("/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/SLHCUpgradeTracker/CBCAnalysis/gui/Three_Colours-Blue-Coffee-Sugar.jpg")
+		return 0
+		
 	
 	def startProcesses(self, msg):
 		"""

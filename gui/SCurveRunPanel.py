@@ -14,6 +14,8 @@ from pyjamas.ui.TextBox import TextBox
 from ErrorMessage import ErrorMessage
 from pyjamas.ui.Button import Button
 
+from pyjamas.ui.Image import Image
+
 from pyjamas.Canvas.GWTCanvas import GWTCanvas as Canvas
 from pyjamas.ui.Composite import Composite
 from pyjamas.Canvas import Color
@@ -22,7 +24,6 @@ from pyjamas.Canvas.ImageLoader import loadImages
 
 from pyjamas.Timer import Timer
 from datetime import datetime
-
 
 
 
@@ -39,6 +40,18 @@ class SCurveRunPanel :
 				#self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
 			#self._ClickPanel.controlValueEntries["RangeHi"].setText(response.keys()[1])	
 			#self._ClickPanel.launchButton.setEnabled(True)
+			
+		def onRemoteError(self, code, message, request_info):
+			ErrorMessage( "Unable to contact server" )
+
+	class loadImageListener:
+		def __init__(self, panel) :
+			self._loadImagePanel=panel	
+			
+		def onRemoteResponse(self, response, request_info):
+			self._loadImagePanel.image=response
+			for buttonName in self._loadImagePanel.controlValueEntries:
+				pass
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -90,10 +103,6 @@ class SCurveRunPanel :
 		self.mainPanel.setSpacing(15)
 		
 		self.controlValueEntries={} #controls the parameters of the s-curve
-
-		#self.graphCanvas=GraphCanvas(self)
-		
-		#self.rpcService.getSCurveValues( )	
 		
 		self.mainSettings=VerticalPanel("Control Settings")
 		self.startButton=VerticalPanel("Run Button")
@@ -114,11 +123,16 @@ class SCurveRunPanel :
 		
 				
 		self.timer = Timer(notify=self.updateStatus)
-		self.timer.scheduleRepeating(500)	
+		#self.timer.scheduleRepeating(500)	
 		
-		#self.canvasPanel.add(graphCanvas)
+		self.imageTimer = Timer(notify=self.updateImage)
+		self.imageTimer.scheduleRepeating(5000)
 		
-		#self.mainPanel.add(self.drawCanvas(self))
+		self.image=Image("images/Three_Colours-Blue-Coffee-Sugar.jpg")
+
+		
+		self.mainPanel.add(self.image)
+		
 	
 	def onChange( self, sender ) :
 		pass
@@ -132,11 +146,12 @@ class SCurveRunPanel :
 			
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
-		#a={}
-		#for name in self.controlValueEntries:
-			#a[name]=self.controlValueEntries[name]
-		#self.echo.setText(int(a["RangeLo"].getText()))
-		
+
+	def updateImage(self):
+		self.mainPanel.remove(self.image)
+		self.image=Image("images/Three_Colours-Blue-Coffee-Sugar.jpg")
+		self.mainPanel.add(self.image)
+	
 	def getPanel(self) :
 		return self.mainPanel
         
@@ -174,26 +189,5 @@ class SCurveRunPanel :
 			label.setWidth(maxWidth)
 
 		return flowPanel
-		
-class GraphCanvas: #broken at the moment - fb
-	
-	def __init__(self):
-		self.canvas = Canvas(self, 500, 500, 500, 500)
-		self.canvasName="S Curve"
-		#loadImages(['Three_Colours-Blue-Coffee-Sugar.jpg'], self)
-		
-	def draw (self):
-		#self.saveContext()
-		#self.drawImage(self.earth.getElement() ,-12,-12)
-		pass
-		
-		
-	def onImagesLoaded(self, imagesHandles):
-		#self.img = imagesHandles[0]
-		self.draw()			
-	
-	def onError(self):
-		pass
-	
 
 
