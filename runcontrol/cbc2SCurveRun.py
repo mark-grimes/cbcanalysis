@@ -74,6 +74,10 @@ class SCurveRun(threading.Thread) :
 			self.daqProgram.startAllProcesses( forceRestart=True ) # forceRestart will kill the XDAQ processes first if they're running
 			self.daqProgram.waitUntilAllProcessesStarted();
 			self.daqProgram.initialise()
+			
+			# Keep a record of what the initial threshold values are and return to those afterwards
+			previousThresholds=self.daqProgram.supervisor.I2CRegisterValues( chipNames=None, registerNames=['VCth'] )
+
 			self.daqProgram.setOutputFilename( self.temporaryOutputFilename )
 			
 			self.daqProgram.configure()
@@ -95,8 +99,16 @@ class SCurveRun(threading.Thread) :
 				if self.quit : break
 				self.analysisControl.analyseFile( self.temporaryOutputFilename )
 			
+			# Now return the thresholds to what they were previously
+			for cbcName in previousThresholds.keys() :
+				# Set the threshold back for this chip (this is held in memory and not yet sent to the board)
+				self.daqProgram.supervisor.setI2c( previousThresholds[cbcName], [cbcName] )
+			# Send all of the I2C parameters to the board
+			self.daqProgram.supervisor.sendI2c()
+
 			self.daqProgram.killAllProcesses()
 			self.daqProgram.waitUntilAllProcessesKilled();
+			
 			# If the user wants to be update tell them we've finished.
 			if self.statusCallback!=None : self.statusCallback.finished()
 		except :
