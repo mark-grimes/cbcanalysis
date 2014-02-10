@@ -17,7 +17,11 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		self._directoryForI2C=I2cRegisterDirectory
 		# I2C parameters have to be saved to a file, and then the GlibSupervisor told to send the
 		# file to the board. This is the temporary directory I'll use to store the files.
-		self.tempDirectory="/tmp/cbcTestStandTempFiles"+str(os.getpid())+"/supervisor"
+		# Have a lot of problems if I don't have permission to write to this directory, so try
+		# and make the directory unique to the user.
+		try: usernameSuffix="_"+os.environ['USER']
+		except KeyError: usernameSuffix=""
+		self.tempDirectory="/tmp/cbcTestStandTempFiles"+usernameSuffix+"/supervisor"
 		try :
 			os.makedirs( self.tempDirectory )
 		except OSError as error:
