@@ -148,14 +148,6 @@ class Client:
 		ErrorMessage( "Unable to contact server" )
 
 
-# AJAX calls must come from the same server, only the path is given here
-class GlibControlService(JSONProxy):
-	def __init__(self):
-		JSONProxy.__init__(self, "services/GlibControlProxy.py", ["getStates","connectedCBCNames",
-			"I2CRegisterValues","setI2CRegisterValues","saveStateValues","loadStateValues","startProcesses","killProcesses","boardIsReachable",
-			"stopTakingData","startSCurveRun","getDataTakingStatus"] )
-
-
 if __name__ == "__main__" :
 	app = Client()
 	app.onModuleLoad()
