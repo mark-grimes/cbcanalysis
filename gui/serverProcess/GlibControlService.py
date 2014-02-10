@@ -29,7 +29,6 @@
 
 
 import sys, os, inspect, socket, time, signal
-import cPickle as pickle
 from CGIHandlerFromStrings import CGIHandlerFromStrings
 
 # The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
@@ -42,8 +41,6 @@ from pythonlib.SimpleGlibProgram import SimpleGlibProgram
 from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import SCurveRun
 from cbc2OccupancyCheck import OccupancyCheck
-
-
 
 class GlibControlService:
 	"""
@@ -131,16 +128,11 @@ class GlibControlService:
 		return self.program.supervisor.connectedCBCNames()
 	
 	def I2CRegisterValues(self, msg):
-		
-		self.activeCBCs = msg
-		
 		return self.program.supervisor.I2CRegisterValues(msg)
 			
 	def setI2CRegisterValues(self, msg):
 		# Make sure I'm not currently taking data
 		if self.dataTakingThread!=None : raise Exception("Currently taking data")
-		
-		
 
 		chipNames = msg.keys()
 		registerNameValueTuple = msg[chipNames[0]]
@@ -150,35 +142,20 @@ class GlibControlService:
 	
 	def saveStateValues(self, msg):
 		
-		saveState = self.program.supervisor.I2CRegisterValues(self.activeCBCs)
+		state = self.program.supervisor.I2CRegisterValues()
+		chipNames = state.keys()
+		registerNameValueTuple = state[chipNames[0]]
 		
-		with open("/tmp/"+msg[0], 'wb') as writeFile:
-			pickle.dump( saveState, writeFile)
-		writeFile.close()
+	#	with open("/tmp/test.txt", 'w') as thefile:
+			#for item in msg:
+				#thefile.write("%s\n" %msg[item])
+			#thefile.write(registerNameValueTuple)
+	#	thefile.close()
 		
 		return msg
 	
 	def loadStateValues(self, msg):
-		
-		with open("/tmp/"+msg, 'rb') as readFile:
-			loadState = pickle.load(readFile)
-		readFile.close()
-		
-		chipNames = loadState.keys()
-		
-		for name in chipNames:
-			if name == 'FE0CBC0':
-				registerNameValueTuple = loadState[loadState.keys()[0]]
-			elif name == 'FE0CBC1':
-				registerNameValueTuple = loadState[loadState.keys()[1]]
-			
-			self.program.supervisor.setI2c( registerNameValueTuple, chipNames = [name] )
-
-		#for name, registerNameValueTuple in chipNames.iteritems():
-		#	self.program.supervisor.setI2c( registerNameValueTuple, [name] )
-		
-		return loadState
-		
+		return msg
 	
 	def startProcesses(self, msg):
 		"""

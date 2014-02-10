@@ -29,22 +29,11 @@ class I2CPanel :
 	class saveStateListener :
 		def __init__(self, panel) :
 			self._saveStatePanel=panel	
-			self._saveStatePanel.returnStatement.setText("File saved: " + self._saveStatePanel.saveFileName.getText())
+			self._saveStatePanel.echoSelection()
 			
 		def onRemoteResponse(self, response, request_info):
 			pass
 			
-		def onRemoteError(self, code, message, request_info):
-			ErrorMessage( "Unable to contact server" )
-			
-	
-	class loadStateListener :
-		def __init__(self, panel) :
-			self._saveStatePanel=panel	
-			
-		def onRemoteResponse(self, response, request_info):
-			self._saveStatePanel.returnStatement.setText("File loaded: " + self._saveStatePanel.loadFileName.getText())
-
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
 	
@@ -140,7 +129,7 @@ class I2CPanel :
 		self.callSettings = VerticalPanel("Load/Save States")
 		self.callSettings.setBorderWidth(1)
 
-		self.callSettings.add(HTML("<center>Load/Save State</center>"))
+		self.callSettings.add(HTML("<center>Save/Load State</center>"))
 		
 		cbcListAndCallSettings=VerticalPanel()
 		cbcListAndCallSettings.add(self.cbcList)
@@ -164,52 +153,43 @@ class I2CPanel :
 	
 	def onChange( self, sender ) :
 		
+		
 		if sender == self.cbcList :
 			# Make a call to the RPC service to get the register values
-			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )#fb - sends all CBCs to refresh all lists
-			self.load.setEnabled(True)
-			self.save.setEnabled(True)
-		elif sender == self.save:
-			msg=[]
-			msg.append(self.saveFileName.getText())
-			#save_msg = self.saveFileName.getText()
-			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) ) 
-		elif sender == self.load:
-			msg = self.loadFileName.getText()
-			self.rpcService.loadStateValues(msg, I2CPanel.loadStateListener(self) )	
-			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) ) #refresh status
-				
+			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )#fb - sends all CBCs
+					
 		# Sender must be a text box. Need to format the input.
-		else : 
+		else :
 			try:
-			# For some reason the '0x' at the start of the string is causing exceptions,
-			# even though it works fine with interactive python. I'll take it off anyway.
+				# For some reason the '0x' at the start of the string is causing exceptions,
+				# even though it works fine with interactive python. I'll take it off anyway.
 				string=sender.getText()
 				if( len(string)>=2 ) :
 					if string[0]=='0' and string[1]=='x' : string=string[2:]
-					value=int( string, 16 ) # convert as hex
-					# Cap values at 255
-					if value<0 : value=0
-					if value>255 : value=255
-					sender.setStyleAttribute( "background-color", "#FFFFFF" )
-			# Convert to the same format as everything else
+				value=int( string, 16 ) # convert as hex
+				# Cap values at 255
+				if value<0 : value=0
+				if value>255 : value=255
+				sender.setStyleAttribute( "background-color", "#FFFFFF" )
+				# Convert to the same format as everything else
 				sender.setText( "0x%02x"%value )
-			# Send the change to the RPC service
+				# Send the change to the RPC service
 				messageParameters = {}
 				for cbcName in self.getActiveCBCs() :
 					messageParameters[cbcName]={ sender.getTitle():value }
-					self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener(self) )
-				self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
-			
-			
+				self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener(self) )
+				self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )# Live refresh of the status box
+				
+				
 			except ValueError:
-				sender.setStyleAttribute( "background-color", "#FF3333" )		
+				sender.setStyleAttribute( "background-color", "#FF3333" )
+				
 		#self.echoSelection()
 	
 	def echoSelection(self): #fb - a good "print screen" method
-		msg = " Buttons clicked: "
+		msg = " You pressed: "
 		for names in self.getCheckedStates():
-			msg += [names]
+			msg += names
 		self.echo.setText(msg)	
 			
 	def getList(self):
@@ -242,7 +222,7 @@ class I2CPanel :
 		for names in self.stateValueEntries:
 			if str(self.stateValueEntries[names].isChecked())=="True":
 				selectedStates.append(names)
-		selectedStates.append(self.saveFileName.getText())
+		selectedStates.append(self.fileName.getText())
 		return selectedStates
 		
 	def createRegisterPanel( self, registerNames ) :
@@ -297,34 +277,35 @@ class I2CPanel :
 			self.stateValueEntries[name]=checkBox
 			registerSelection.add(checkBox)
 		
-		#Tidy up 
-		loadPanel = HorizontalPanel()
-		loadFileTextBox = TextBox()
-		loadFileTextBox.setText("DatFile.txt")
-		loadFileTextBox.setWidth(80)
-		self.loadFileName = loadFileTextBox
-		loadPanel.add(loadFileTextBox)
-		self.load = Button("Load",getattr(self,"onChange")) #overrides default and sends it to onChange
-		loadPanel.add(self.load)
-		self.load.setEnabled(False)
+		state = HorizontalPanel()
+		label = Label("FileName")
+		state.add(label)
+		fileTextBox = TextBox()
+		fileTextBox.setText("DatFile.dat")
+		fileTextBox.setWidth(80)
+		self.fileName = fileTextBox
+		state.add(fileTextBox)
 		
-		savePanel = HorizontalPanel()
-		saveFileTextBox = TextBox()
-		saveFileTextBox.setText("DatFile.txt")
-		saveFileTextBox.setWidth(80)
-		self.saveFileName = saveFileTextBox
-		savePanel.add(saveFileTextBox)
-		self.save = Button("Save", getattr(self,"onChange"))
-		savePanel.add(self.save)
-		self.save.setEnabled(False)
-		
-		self.returnStatement = Label()
+		launch = HorizontalPanel()
+		self.save = Button("Save")
+		self.load = Button("Load")
+		self.save.addClickListener(self)
+		self.load.addClickListener(self)
+		launch.add(self.save)
+		launch.add(self.load)
 		
 		vertPanel.add(registerSelection)
-		vertPanel.add(loadPanel)
-		vertPanel.add(savePanel)
-		vertPanel.add(self.returnStatement)
+		vertPanel.add(state)
+		vertPanel.add(launch)
 		
 		return vertPanel
+	
+	def onClick(self, sender) :
+		if sender == self.save:
+			self.rpcService.saveStateValues(None, I2CPanel.saveStateListener(self) ) 
+			pass
+		elif sender == self.load:
+			self.rpcService.loadStateValues(self.fileName, I2CPanel.DoNothingListener(self) )
+			
 
 
