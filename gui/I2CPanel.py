@@ -166,16 +166,18 @@ class I2CPanel :
 		
 		if sender == self.cbcList :
 			# Make a call to the RPC service to get the register values
-			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )#fb - sends all CBCs
+			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )#fb - sends all CBCs to refresh all lists
 			self.load.setEnabled(True)
 			self.save.setEnabled(True)
 		elif sender == self.save:
-			msg = self.saveFileName.getText()
-			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) ) #refresh box
+			msg=[]
+			msg.append(self.saveFileName.getText())
+			#save_msg = self.saveFileName.getText()
+			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) ) 
 		elif sender == self.load:
 			msg = self.loadFileName.getText()
 			self.rpcService.loadStateValues(msg, I2CPanel.loadStateListener(self) )	
-			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )
+			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) ) #refresh status
 				
 		# Sender must be a text box. Need to format the input.
 		else : 
@@ -205,9 +207,9 @@ class I2CPanel :
 		#self.echoSelection()
 	
 	def echoSelection(self): #fb - a good "print screen" method
-		msg = " File saved: "
+		msg = " Buttons clicked: "
 		for names in self.getCheckedStates():
-			msg += names
+			msg += [names]
 		self.echo.setText(msg)	
 			
 	def getList(self):
@@ -237,9 +239,9 @@ class I2CPanel :
 	
 	def getCheckedStates(self): # returns the checked boxes + filename
 		selectedStates = []
-		#for names in self.stateValueEntries:
-			#if str(self.stateValueEntries[names].isChecked())=="True":
-			#	selectedStates.append(names)
+		for names in self.stateValueEntries:
+			if str(self.stateValueEntries[names].isChecked())=="True":
+				selectedStates.append(names)
 		selectedStates.append(self.saveFileName.getText())
 		return selectedStates
 		
