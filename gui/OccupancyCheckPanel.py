@@ -175,6 +175,7 @@ class OccupancyCheckPanel :
 		self.view.clearResults()
 		for cbcName in response.keys() :
 			self.view.addResult( cbcName, response[cbcName] )
+		self.view.setEchoMessage("Results refreshed")
 
 	def _onConnectedCBCNamesResponse( self, response ) :
 		"""
