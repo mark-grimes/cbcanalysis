@@ -82,20 +82,6 @@ int main( int argc, char* argv[] )
 	try
 	{
 		HttpRequestHandler handler;
-		try
-		{
-			std::vector<std::string> parentArray=handler.decodeStringToArray<std::string>( "[[1, 2,3,4], [5,6,7] ] " );
-			for( const auto& string : parentArray )
-			{
-				std::vector<int> array=handler.decodeStringToArray<int>( string );
-				for( const auto value : array ) std::cout << value << ", ";
-				std::cout << std::endl;
-			}
-		}
-		catch( std::exception& error )
-		{
-			std::cout << "Exception : " << error.what() << std::endl;
-		}
 		httpserver::HttpServer server( handler );
 		server.start( "127.0.0.1", argv[1] );
 
@@ -234,14 +220,21 @@ namespace
 				const cbcanalyser::FedSCurves& constCBCs=connectedCBCSCurves_;
 				for( size_t cbcIndex=0; cbcIndex<channelsForEachCBC.size(); ++cbcIndex )
 				{
-					const cbcanalyser::FedChannelSCurves& fedChannel=constCBCs.getFedChannelSCurves(cbcIndex);
-					for( const auto channelNumber : channelsForEachCBC[cbcIndex] )
+					try
 					{
-						output << "Adding CBC " << cbcIndex << " channel " << channelNumber << std::endl;
-						const cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(channelNumber);
-						histograms.push_back( std::move( sCurve.createHistogram( "Efficiency CBC "+std::to_string(cbcIndex)+" channel "+std::to_string(channelNumber) ) ) );
-						// Also fit the histogram
-						cbcanalyser::SCurve::fitHistogram( histograms.back() );
+						const cbcanalyser::FedChannelSCurves& fedChannel=constCBCs.getFedChannelSCurves(cbcIndex);
+						for( const auto channelNumber : channelsForEachCBC[cbcIndex] )
+						{
+							output << "Adding CBC " << cbcIndex << " channel " << channelNumber << std::endl;
+							const cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(channelNumber);
+							histograms.push_back( std::move( sCurve.createHistogram( "Efficiency CBC "+std::to_string(cbcIndex)+" channel "+std::to_string(channelNumber) ) ) );
+							// Also fit the histogram
+							cbcanalyser::SCurve::fitHistogram( histograms.back() );
+						}
+					}
+					catch( std::runtime_error& exception )
+					{
+						output << "Got the error : " << exception.what() << std::endl;
 					}
 				}
 
