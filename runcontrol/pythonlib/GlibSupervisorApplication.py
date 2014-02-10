@@ -112,13 +112,13 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		return self.i2cChips.keys()
 	
-	def I2CRegisterValues( self, chipNames=None ) :
+	def I2CRegisterValues( self, chipNames=None, registerNames=None ) :
 		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		if chipNames==None : cbcNames=self.connectedCBCNames()
 		else : cbcNames=chipNames
 		returnValue = {}
 		for name in cbcNames :
-			returnValue[name]=self.i2cChips[name].getValues()
+			returnValue[name]=self.i2cChips[name].getValues(registerNames)
 		return returnValue
 
 

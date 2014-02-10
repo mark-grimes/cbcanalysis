@@ -119,6 +119,8 @@ namespace cbcanalyser
 
 		SCurveEntry& getEntry( float threshold );
 		const SCurveEntry& getEntry( float threshold ) const;
+		/** @brief Returns a vector of the thresholds that this SCurve has data for */
+		const std::vector<float> getValidThresholds() const;
 		/** @brief Returns the number of bins in the s-curve. */
 		size_t size() const;
 

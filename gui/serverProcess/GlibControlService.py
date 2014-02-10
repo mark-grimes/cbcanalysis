@@ -41,6 +41,7 @@ sys.path.append( os.path.join( INSTALLATION_PATH, "runcontrol" ) )
 from pythonlib.SimpleGlibProgram import SimpleGlibProgram
 from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import SCurveRun
+from cbc2OccupancyCheck import OccupancyCheck
 
 
 
@@ -67,7 +68,7 @@ class GlibControlService:
 			self.parentControlService.dataTakingFractionComplete=fractionComplete
 			self.parentControlService.dataTakingStatusString=statusString
 		def finished( self ) :
-			self.parentControlService.dataTakingThread=dataTakingThread
+			self.parentControlService.dataTakingThread=None
 			self.parentControlService.dataTakingFractionComplete=1
 			self.parentControlService.dataTakingStatusString="Not taking data"
 
@@ -138,11 +139,11 @@ class GlibControlService:
 	def setI2CRegisterValues(self, msg):
 		# Make sure I'm not currently taking data
 		if self.dataTakingThread!=None : raise Exception("Currently taking data")
-		
+
 		chipNames = msg.keys()
 		registerNameValueTuple = msg[chipNames[0]]
-		
-		
+
+
 		return self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
 	
 	def saveStateValues(self, msg):
@@ -213,25 +214,52 @@ class GlibControlService:
 			self.dataTakingThread.quit=True
 	
 	def startSCurveRun( self, msg ) :
-		
-		#self.controlValues = {}
-		#for name in msg:
-		#	self.controlValues[name] = msg[name]
-			
-		#self.RangeLo =  str ( self.controlValues["RangeLo"].getValues() )
-			
-		#self.RangeLo = int( msg["RangeLo"].getText() , 10)
-		#self.RangeHi = int( msg["RangeHi"].getText() , 10)
-			
-		#self.analysisControl.saveHistograms( "/tmp/"+self.controlValues["FileName"] )	
 		"""
 		Starts a new thread taking s-curve data
 		"""
-		self.dataTakingThread=SCurveRun( GlibControlService._DataTakingStatusReceiver(self), self.program, self.analysisControl, range(100,150) )
+		# Make sure I'm not currently taking data
+		if self.dataTakingThread!=None : raise Exception("Currently taking data")
+
+		self.dataTakingFractionComplete=0
+		self.dataTakingStatusString="Initiating s-curve run"
+
+		thresholds=msg
+		self.analysisControl.reset()
+		self.dataTakingThread=SCurveRun( GlibControlService._DataTakingStatusReceiver(self), self.program, self.analysisControl, thresholds )
+		self.dataTakingThread.start()
+
+	def startOccupancyCheck( self, msg ) :
+		"""
+		Starts a new thread with a short 100 event run to check the occupancies for the current settings.
+		"""
+		# Make sure I'm not currently taking data
+		if self.dataTakingThread!=None : raise Exception("Currently taking data")
+
+		self.dataTakingFractionComplete=0
+		self.dataTakingStatusString="Initiating occupancy check"
+
+		self.analysisControl.reset()
+		self.dataTakingThread=OccupancyCheck( GlibControlService._DataTakingStatusReceiver(self), self.program, self.analysisControl )
 		self.dataTakingThread.start()
 
 	def getDataTakingStatus( self, msg ) :
 		return {"fractionComplete":self.dataTakingFractionComplete,"statusString":self.dataTakingStatusString}
+	
+	def getOccupancies( self, msg ) :
+		returnValue={}
+		#self.analysisControl.analyseFile( "/tmp/cbc2SCurveRun_OutputFile.dat" )
+		occupancies=self.analysisControl.occupancies()
+		# The C++ code doesn't know which CBCs are connected. Dummy data is in the output files
+		# for unconnected CBCs. I'll check which CBCs are connected and only return the data for
+		# those.
+		for cbcName in  self.program.supervisor.connectedCBCNames() :
+			try :
+				returnValue[cbcName]=occupancies[cbcName]
+			except KeyError :
+				# No data for that CBC
+				returnValue[cbcName]=None
+
+		return returnValue
 
 if __name__ == '__main__':	
 

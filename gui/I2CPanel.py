@@ -17,9 +17,12 @@ from ErrorMessage import ErrorMessage
 from pyjamas.ui.CheckBox import CheckBox
 from pyjamas.ui.Button import Button
 from pyjamas.ui.HTML import HTML
+from pyjamas.ui import HasHorizontalAlignment
 
 from pyjamas.Timer import Timer
 from datetime import datetime
+
+from GlibRPCService import GlibRPCService
 
 class I2CPanel :
 	
@@ -109,9 +112,9 @@ class I2CPanel :
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
 
-	def __init__( self, rpcService ) :
+	def __init__( self ) :
 		# This is the service that will be used to communicate with the DAQ software
-		self.rpcService = rpcService
+		self.rpcService = GlibRPCService.instance()
 		# The main panel that everythings will be insided
 		self.mainPanel = HorizontalPanel()
 		self.mainPanel.setSpacing(10)
@@ -129,7 +132,6 @@ class I2CPanel :
 		self.cbcList.addChangeListener(self)
 		self.rpcService.connectedCBCNames( None, I2CPanel.ConnectedCBCListener(self.cbcList) ) # Ask the server what's connected
 		
-		self.mainPanel.add( self.cbcList )
 		
 		# This is the panel that will have the list of I2C registers. I'll split up the
 		# registers into subjects to make them more manageable.
@@ -137,10 +139,14 @@ class I2CPanel :
 		self.channelMasks = DisclosurePanel("Channel Masks")
 		self.channelTrims = DisclosurePanel("Channel Trims")
 		self.callSettings = VerticalPanel("Load/Save States")
+		self.callSettings.setBorderWidth(1)
 
 		self.callSettings.add(HTML("<center>Load/Save State</center>"))
 		
-		self.mainPanel.add(self.callSettings)
+		cbcListAndCallSettings=VerticalPanel()
+		cbcListAndCallSettings.add(self.cbcList)
+		cbcListAndCallSettings.add(self.callSettings)
+		self.mainPanel.add(cbcListAndCallSettings)
 		self.mainPanel.add(self.mainSettings)
 		self.mainPanel.add(self.channelMasks)
 		self.mainPanel.add(self.channelTrims)
@@ -243,12 +249,10 @@ class I2CPanel :
 		Creates panels and buttons for everything given in registerNames, and returns the main panel.
 		"""
 		flowPanel=FlowPanel()
-		# Keep track of these after the for loop because I want to set their widths afterwards
-		newLabels=[]
 		for buttonName in registerNames :
 			newPanel=HorizontalPanel()
-			newLabels.append( Label(buttonName) )
-			newPanel.add( newLabels[-1] )
+			label=Label(buttonName)
+			newPanel.add( label )
 			newTextBox=TextBox()
 			newTextBox.setEnabled(False)
 			newTextBox.setWidth(80)
@@ -257,6 +261,12 @@ class I2CPanel :
 			statusBox.setWidth(30)
 			newPanel.add(newTextBox)
 			newPanel.add(statusBox)
+			newPanel.setCellHorizontalAlignment( newTextBox, HasHorizontalAlignment.ALIGN_RIGHT )
+			newPanel.setCellHorizontalAlignment( statusBox, HasHorizontalAlignment.ALIGN_RIGHT )
+			newPanel.setCellWidth( statusBox, "20px" )
+			newPanel.setWidth("100%")
+			#newPanel.setStyleName("areaStyle");
+			#newPanel.setBorderWidth(5);
 			
 			newTextBox.setText("select chip...")
 			newTextBox.addChangeListener(self)
@@ -268,17 +278,8 @@ class I2CPanel :
 			statusBox.setTitle(buttonName)
 			statusBox.setText("...")
 			
-			
 			flowPanel.add(newPanel)
 
-		# Set all of the widths of the labels to be the same, so that the boxes line up
-		maxWidth=0
-		for label in newLabels :
-			# This doesn't work for some reason
-			#if label.getWidth() > maxWidth : maxWidth=label.getWidth()
-			if len(label.getText())*9 > maxWidth : maxWidth=len(label.getText())*9
-		for label in newLabels :
-			label.setWidth(maxWidth)
 
 		return flowPanel
 	

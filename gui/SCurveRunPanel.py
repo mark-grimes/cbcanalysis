@@ -11,7 +11,6 @@ from pyjamas.ui.DisclosurePanel import DisclosurePanel
 from pyjamas.ui.ListBox import ListBox
 from pyjamas.ui.Label import Label
 from pyjamas.ui.TextBox import TextBox
-from ErrorMessage import ErrorMessage
 from pyjamas.ui.Button import Button
 
 from pyjamas.ui.Image import Image
@@ -23,9 +22,10 @@ from pyjamas.Canvas import Color
 from pyjamas.Canvas.ImageLoader import loadImages
 
 from pyjamas.Timer import Timer
-from datetime import datetime
 
-
+from ErrorMessage import ErrorMessage
+from GlibRPCService import GlibRPCService
+from DataRunManager import DataRunManager
 
 class SCurveRunPanel :
 	
@@ -95,9 +95,10 @@ class SCurveRunPanel :
 			ErrorMessage( "Unable to contact server: "+str(message) )
 
 	
-	def __init__( self, rpcService ) :
+	def __init__( self ) :
 		# This is the service that will be used to communicate with the DAQ software
-		self.rpcService = rpcService
+		self.rpcService = GlibRPCService.instance()
+		self.dataRunManager = DataRunManager.instance()
 
 		self.mainPanel = VerticalPanel()
 		self.mainPanel.setSpacing(15)
@@ -121,19 +122,34 @@ class SCurveRunPanel :
 		self.mainPanel.add(self.launchButton)
 		self.mainPanel.add(self.echo)
 		
-				
+		self.dataRunManager.registerEventHandler( self )
 		self.timer = Timer(notify=self.updateStatus)
 		#self.timer.scheduleRepeating(500)	
 		
 		self.imageTimer = Timer(notify=self.updateImage)
 		self.imageTimer.scheduleRepeating(5000)
+
 		
 		self.image=Image("images/Three_Colours-Blue-Coffee-Sugar.jpg")
 
 		
 		self.mainPanel.add(self.image)
 		
-	
+		#self.mainPanel.add(self.drawCanvas(self))
+
+	def onDataTakingEvent( self, eventCode, details ) :
+		"""
+		Method that receives updates from DataRunManager
+		"""
+		if eventCode==DataRunManager.DataTakingStartedEvent :
+			self.echo.setText("Taking data... ")
+			self.launchButton.setEnabled(False)
+		elif eventCode==DataRunManager.DataTakingFinishedEvent :
+			self.echo.setText("Data taking finished")
+			self.launchButton.setEnabled(True)
+		elif eventCode==DataRunManager.DataTakingStatusEvent :
+			self.echo.setText("%3d%% - "%int(details['fractionComplete']*100+0.5)+details['statusString'] )
+			
 	def onChange( self, sender ) :
 		pass
 		
@@ -141,8 +157,12 @@ class SCurveRunPanel :
 		self.msg = {"RangeLo":50, "RangeHi" :150, "Steps":1, "FileName":"test.png"}
 		
 		if sender==self.launchButton :
-			self.echo.setText("Querying")
-			self.rpcService.startSCurveRun(None, SCurveRunPanel.DoNothingListener() )		
+			self.echo.setText("Initiating run")
+			rangeHigh=int(self.rangeHighBox.getText())
+			rangeLow=int(self.rangeLowBox.getText())
+			stepSize=int(self.stepSizeBox.getText())
+			self.dataRunManager.startSCurveRun( range(rangeLow,rangeHigh,stepSize) )
+			#self.rpcService.startSCurveRun(None, SCurveRunPanel.DoNothingListener() )		
 			
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
@@ -166,13 +186,19 @@ class SCurveRunPanel :
 			newTextBox.setEnabled(True)
 			newTextBox.setWidth(80)
 			newPanel.add(newTextBox)	
-			if buttonName=="RangeLo": newTextBox.setText("100") # Default values
-			elif buttonName=="RangeHi": newTextBox.setText("150")
-			elif buttonName=="Steps": newTextBox.setText("1")
+			if buttonName=="RangeLo" :
+				newTextBox.setText("100") # Default values
+				self.rangeLowBox=newTextBox
+			elif buttonName=="RangeHi" :
+				newTextBox.setText("150")
+				self.rangeHighBox=newTextBox
+			elif buttonName=="Steps" :
+				newTextBox.setText("1")
+				self.stepSizeBox=newTextBox
 			elif buttonName=="FileName": newTextBox.setText("TestRun.png")
 			
 			#newTextBox.addChangeListener(self)
-			newTextBox.setTitle(buttonName) 
+			newTextBox.setTitle(buttonName)
 			
 			self.controlValueEntries[buttonName]=newTextBox	
 			
