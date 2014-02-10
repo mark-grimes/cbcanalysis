@@ -11,7 +11,8 @@ class AlreadyTakingDataError(Exception) :
 	@date 08/Feb/2014
 	"""
 	def __init__( self, message=None ) :
-		if message!=None : message=" "+message # Add a space between the main message and the additional one
+		if message==None : message=""
+		else : message=" "+message # Add a space between the main message and the additional one
 		Exception.__init__(self, "Data taking is already in progress"+message )
 	
 class DataRunManager(object) :
@@ -23,7 +24,7 @@ class DataRunManager(object) :
 	method to get the only running instance.
 	"""
 	pollingTime=1000
-	idlePollingTime=8000 # Longer polling time when I don't think I'm taking data.
+	idlePollingTime=-1 # Longer polling time when I don't think I'm taking data.
 	_onlyInstance=None
 	# The following members are used as an enum to describe what the event is
 	DataTakingStartedEvent=0
@@ -98,7 +99,7 @@ class DataRunManager(object) :
 			# I'll constantly poll to make sure it's not taking data, in case something/someone
 			# else connects and tells the RPC service to do something. I'll use a longer time
 			# though.
-			self.pollingTimer.schedule( DataRunManager.idlePollingTime )
+			if self.idlePollingTime>0 : self.pollingTimer.schedule( DataRunManager.idlePollingTime )
 
 	def _onStartSCurveRunResponse( self, reponse ) :
 		"""
