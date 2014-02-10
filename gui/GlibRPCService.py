@@ -26,4 +26,4 @@ class GlibRPCService(JSONProxy):
 			"I2CRegisterValues","setI2CRegisterValues","saveStateValues","loadStateValues",
 			"startProcesses","killProcesses","boardIsReachable",
 			"stopTakingData","startSCurveRun","startOccupancyCheck",
-			"getDataTakingStatus","getOccupancies"] )
+			"getDataTakingStatus","getOccupancies","createHistogram"] )
