@@ -16,8 +16,10 @@ class OccupancyCheck(threading.Thread) :
 		currentStatus( fractionComplete, statusString )
 		finished()
 	@endcode
-	Other scripts require a "currentStatus" method as well, but since this is such a short run
-	this is not used here. The finished method is called as the last thing before the thread
+	currentStatus is called periodically to update you of the current status. The parameter
+	fractionComplete will be a number between 0 and 1 indicating how far through processing
+	the thread is. The parameter statusString is a string giving some brief information about
+	what's going on. The finished method is called as the last thing before the thread
 	terminates.
 	You can set statusCallback to None if you don't want any progress updates.
 	
@@ -47,8 +49,11 @@ class OccupancyCheck(threading.Thread) :
 			self.daqProgram.configure()
 			
 			self.daqProgram.play()
-			while (not self.quit) and self.daqProgram.streamer.acquisitionState()=="Running":
+			stateAndEventNumber=self.daqProgram.streamer.acquisitionStateAndEvent()
+			while (not self.quit) and stateAndEventNumber[0]=="Running":
+				if self.statusCallback!=None : self.statusCallback.currentStatus( float(stateAndEventNumber[1])/float(100), "Taking event "+str(stateAndEventNumber[1]) )
 				time.sleep(2)
+				stateAndEventNumber=self.daqProgram.streamer.acquisitionStateAndEvent()
 			
 			self.daqProgram.pause()
 			if not self.quit : self.analysisControl.analyseFile( self.temporaryOutputFilename )
@@ -68,6 +73,8 @@ if __name__ == '__main__':
 
 	# Create an object that informs the user when the run is finished
 	class PrintStatus(object) :
+		def currentStatus( self, fractionComplete, statusString ) :
+			print "%3d%% - %s"%(int(fractionComplete*100+0.5),statusString)
 		def finished( self ) :
 			print "Finished taking data"
 	
