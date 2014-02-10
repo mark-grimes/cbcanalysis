@@ -139,6 +139,8 @@ class GlibControlService:
 	def setI2CRegisterValues(self, msg):
 		# Make sure I'm not currently taking data
 		if self.dataTakingThread!=None : raise Exception("Currently taking data")
+		
+		
 
 		chipNames = msg.keys()
 		registerNameValueTuple = msg[chipNames[0]]
@@ -158,19 +160,24 @@ class GlibControlService:
 	
 	def loadStateValues(self, msg):
 		
-		with open("/tmp/DatFile.txt", 'rb') as readFile:
+		with open("/tmp/"+msg, 'rb') as readFile:
 			loadState = pickle.load(readFile)
 		readFile.close()
 		
-		chipNames = self.activeCBCs
-		registerNameValueTuple = loadState[chipNames[0]]
+		chipNames = loadState.keys()
 		
-		self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
+		for name in chipNames:
+			if name == 'FE0CBC0':
+				registerNameValueTuple = loadState[loadState.keys()[0]]
+			elif name == 'FE0CBC1':
+				registerNameValueTuple = loadState[loadState.keys()[1]]
+			
+			self.program.supervisor.setI2c( registerNameValueTuple, chipNames = [name] )
+		
+		#for name, registerNameValueTuple in chipNames.iteritems():
+		#	self.program.supervisor.setI2c( registerNameValueTuple, [name] )
+		
 		return loadState
-	
-	def loadImage(self, msg):
-		#image = Image.open("/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src/SLHCUpgradeTracker/CBCAnalysis/gui/Three_Colours-Blue-Coffee-Sugar.jpg")
-		return 0
 		
 	
 	def startProcesses(self, msg):

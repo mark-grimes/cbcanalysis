@@ -41,11 +41,10 @@ class I2CPanel :
 	class loadStateListener :
 		def __init__(self, panel) :
 			self._saveStatePanel=panel	
-			self._saveStatePanel.returnStatement.setText("File loaded: " + self._saveStatePanel.loadFileName.getText())
 			
 		def onRemoteResponse(self, response, request_info):
-			pass
-			
+			self._saveStatePanel.returnStatement.setText("File loaded: " + self._saveStatePanel.loadFileName.getText())
+
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
 	
@@ -172,10 +171,11 @@ class I2CPanel :
 			self.save.setEnabled(True)
 		elif sender == self.save:
 			msg = self.saveFileName.getText()
-			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) ) 
+			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) ) #refresh box
 		elif sender == self.load:
 			msg = self.loadFileName.getText()
-			self.rpcService.loadStateValues(msg, I2CPanel.ReadRegisterValueListener(self) )	
+			self.rpcService.loadStateValues(msg, I2CPanel.loadStateListener(self) )	
+			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )
 				
 		# Sender must be a text box. Need to format the input.
 		else : 
@@ -197,8 +197,7 @@ class I2CPanel :
 				for cbcName in self.getActiveCBCs() :
 					messageParameters[cbcName]={ sender.getTitle():value }
 					self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener(self) )
-					#self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )# Live refresh of the status box
-					
+				self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
 			
 			
 			except ValueError:

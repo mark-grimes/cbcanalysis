@@ -179,7 +179,7 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
 		
 		if chipNames==None : chipNames=self.i2cChips.keys()
-		for name in chipNames :
+		for name in chipNames : #probably not needed
 			chip = self.i2cChips[name]
 			for name in registerNameValueTuple :
 				register = chip.getRegister(name)

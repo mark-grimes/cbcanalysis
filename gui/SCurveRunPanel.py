@@ -34,12 +34,7 @@ class SCurveRunPanel :
 			self._ClickPanel=panel	
 			
 		def onRemoteResponse(self, response, request_info):
-			#self._ClickPanel.launchButton.setEnabled(False)
-			for buttonName in self._ClickPanel.controlValueEntries:
-				pass
-				#self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
-			#self._ClickPanel.controlValueEntries["RangeHi"].setText(response.keys()[1])	
-			#self._ClickPanel.launchButton.setEnabled(True)
+			pass
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -50,8 +45,6 @@ class SCurveRunPanel :
 			
 		def onRemoteResponse(self, response, request_info):
 			self._loadImagePanel.image=response
-			for buttonName in self._loadImagePanel.controlValueEntries:
-				pass
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -135,7 +128,6 @@ class SCurveRunPanel :
 		
 		self.mainPanel.add(self.image)
 		
-		#self.mainPanel.add(self.drawCanvas(self))
 
 	def onDataTakingEvent( self, eventCode, details ) :
 		"""
@@ -154,15 +146,13 @@ class SCurveRunPanel :
 		pass
 		
 	def onClick(self, sender):
-		self.msg = {"RangeLo":50, "RangeHi" :150, "Steps":1, "FileName":"test.png"}
 		
 		if sender==self.launchButton :
 			self.echo.setText("Initiating run")
 			rangeHigh=int(self.rangeHighBox.getText())
 			rangeLow=int(self.rangeLowBox.getText())
 			stepSize=int(self.stepSizeBox.getText())
-			self.dataRunManager.startSCurveRun( range(rangeLow,rangeHigh,stepSize) )
-			#self.rpcService.startSCurveRun(None, SCurveRunPanel.DoNothingListener() )		
+			self.dataRunManager.startSCurveRun( range(rangeLow,rangeHigh,stepSize) )	
 			
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
