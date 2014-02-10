@@ -135,9 +135,12 @@ class OccupancyCheckPanel :
 		self.view.setEchoMessage("No data.")
 			
 	def onClick(self, sender):
-		if sender==self.view.getUpdateButton() :
-			self.view.setEchoMessage("Starting data run")
-			self.dataRunManager.startOccupancyCheck()
+		try:
+			if sender==self.view.getUpdateButton() :
+				self.view.setEchoMessage("Starting data run")
+				self.dataRunManager.startOccupancyCheck()
+		except Exception as error :
+			ErrorMessage( "Exception thrown: "+str(error) )
 
 	def onDataTakingEvent( self, eventCode, details ) :
 		"""
@@ -172,6 +175,7 @@ class OccupancyCheckPanel :
 		self.view.clearResults()
 		for cbcName in response.keys() :
 			self.view.addResult( cbcName, response[cbcName] )
+		self.view.setEchoMessage("Results refreshed")
 
 	def _onConnectedCBCNamesResponse( self, response ) :
 		"""

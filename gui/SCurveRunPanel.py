@@ -116,10 +116,6 @@ class SCurveRunPanel :
 		self.mainPanel.add( histogramDisplay.getPanel() )
 		
 		self.dataRunManager.registerEventHandler( self )
-		
-		#self.canvasPanel.add(graphCanvas)
-		
-		#self.mainPanel.add(self.drawCanvas(self))
 
 	def onDataTakingEvent( self, eventCode, details ) :
 		"""
@@ -150,11 +146,7 @@ class SCurveRunPanel :
 			
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
-		#a={}
-		#for name in self.controlValueEntries:
-			#a[name]=self.controlValueEntries[name]
-		#self.echo.setText(int(a["RangeLo"].getText()))
-		
+
 	def getPanel(self) :
 		return self.mainPanel
         

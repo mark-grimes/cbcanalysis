@@ -1,4 +1,4 @@
-import XDAQTools
+import XDAQTools, re
 
 class GlibStreamerApplication( XDAQTools.Application ) :
 	def __init__( self, host=None, port=None, className=None, instance=None ) :
@@ -95,3 +95,31 @@ class GlibStreamerApplication( XDAQTools.Application ) :
 			else: return "<unknown>"
 		except:
 			return "<unknown>"
+
+	def acquisitionStateAndEvent(self):
+		"""
+		Same as acquisitionState(), but returns a two element array with the state as the first element
+		and either the event number as the second, or 'None' if the acquisition is not running.
+		"""
+		try:
+			response=self.httpRequest( "GET", "/urn:xdaq-application:lid="+str(self.id) )
+		except:
+			return ["<uncontactable>",None]
+		try:			
+			# The only way I've figured out how to get this information is by using some
+			# hard coded knowledge what the webpage shows in different states.
+			streamerStateLine=response.fullMessage.splitlines()[34]
+			if streamerStateLine[0:45]=="<table><tr><td><form action='saveHtmlValues'>":
+				# The table to modify parameters is showing which means data is not being taken
+				return ["Stopped",None]
+			elif streamerStateLine[0:33]=='<form action="pauseAcquisition" >':
+				#try :
+					# To get the event number, perform a regular expression search
+				event=re.findall('(?<=Acquisition number: )\w+', response.fullMessage)[0]
+				#except :
+				#	event="error - couldn't get the event number"
+				return ["Running",event]
+			else: return ["<unknown>",None]
+		except:
+			raise
+			return ["<unknown>",None]

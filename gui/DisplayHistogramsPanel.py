@@ -37,7 +37,7 @@ class DisplayHistogramsView(object) :
 		self.mainPanel = HorizontalPanel()
 		self.mainPanel.add( controls )
 		self.mainPanel.add( self.histogram )
-		self.histogram.setUrl( "histogramsForCBC0.png" )
+		self.histogram.setUrl( "defaultScurveHistogram.png" )
 
 	def getPanel( self ) :
 		return self.mainPanel
