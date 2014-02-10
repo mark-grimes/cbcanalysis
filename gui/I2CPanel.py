@@ -246,8 +246,8 @@ class I2CPanel :
 			newPanel.setCellHorizontalAlignment( statusBox, HasHorizontalAlignment.ALIGN_RIGHT )
 			newPanel.setCellWidth( statusBox, "20px" )
 			newPanel.setWidth("100%")
-			#newPanel.setStyleName("areaStyle");
-			#newPanel.setBorderWidth(5);
+			#newPanel.setStyleName("areaStyle")
+			#newPanel.setBorderWidth(5)
 			
 			newTextBox.setText("select chip...")
 			newTextBox.addChangeListener(self)
