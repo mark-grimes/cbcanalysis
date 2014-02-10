@@ -64,6 +64,9 @@ class AnalyserControl :
 	def saveHistograms( self, filename ) :
 		return self.httpGetRequest( "saveHistograms", { "filename" : filename } )
 
+	def saveHistogramPicture( self, outputFilename, channels ) :
+		return self.httpGetRequest( "saveHistogramPicture", { "filename": outputFilename, 'channels': channels } )
+
 	def setThreshold( self, threshold ) :
 		return self.httpGetRequest( "setThreshold", { "value" : str(threshold) } )
 	
