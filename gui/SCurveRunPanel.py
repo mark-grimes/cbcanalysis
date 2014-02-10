@@ -33,17 +33,12 @@ class SCurveRunPanel :
 			self._ClickPanel=panel	
 			
 		def onRemoteResponse(self, response, request_info):
-			pass
-			
-		def onRemoteError(self, code, message, request_info):
-			ErrorMessage( "Unable to contact server" )
-
-	class loadImageListener:
-		def __init__(self, panel) :
-			self._loadImagePanel=panel	
-			
-		def onRemoteResponse(self, response, request_info):
-			self._loadImagePanel.image=response
+			#self._ClickPanel.launchButton.setEnabled(False)
+			for buttonName in self._ClickPanel.controlValueEntries:
+				pass
+				#self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
+			#self._ClickPanel.controlValueEntries["RangeHi"].setText(response.keys()[1])	
+			#self._ClickPanel.launchButton.setEnabled(True)
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -118,16 +113,7 @@ class SCurveRunPanel :
 		self.mainPanel.add( histogramDisplay.getPanel() )
 		
 		self.dataRunManager.registerEventHandler( self )
-		
-		self.imageTimer = Timer(notify=self.updateImage)
-		self.imageTimer.scheduleRepeating(5000)
 
-		
-		self.image=Image("images/Three_Colours-Blue-Coffee-Sugar.jpg")
-
-		
-		self.mainPanel.add(self.image)
-		
 
 	def onDataTakingEvent( self, eventCode, details ) :
 		"""
@@ -157,11 +143,6 @@ class SCurveRunPanel :
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
 
-	def updateImage(self):
-		self.mainPanel.remove(self.image)
-		self.image=Image("images/Three_Colours-Blue-Coffee-Sugar.jpg")
-		self.mainPanel.add(self.image)
-	
 	def getPanel(self) :
 		return self.mainPanel
         
