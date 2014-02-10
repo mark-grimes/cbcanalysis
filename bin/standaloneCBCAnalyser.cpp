@@ -218,6 +218,9 @@ namespace
 
 				// Use a const reference to make sure I don't create entries by querying.
 				const cbcanalyser::FedSCurves& constCBCs=connectedCBCSCurves_;
+				//
+				// First run through and create all of the histograms
+				//
 				for( size_t cbcIndex=0; cbcIndex<channelsForEachCBC.size(); ++cbcIndex )
 				{
 					try
@@ -238,7 +241,6 @@ namespace
 					}
 				}
 
-				//std::unique_ptr<TCanvas> pCanvas( new TCanvas() );
 				std::unique_ptr<TCanvas> pCanvas( new TCanvas() );
 				std::string drawOption="";
 				for( const auto& pHistogram : histograms )
@@ -246,6 +248,15 @@ namespace
 					pHistogram->SetTitle("");
 					pHistogram->Draw(drawOption.c_str());
 					drawOption="same";
+				}
+				// Add an error to the plot in case there was no data
+				std::unique_ptr<TPaveText> pPaveText;
+				if( histograms.empty() )
+				{
+					pPaveText.reset( new TPaveText(0.05,0.1,0.95,0.8) );
+					pPaveText->AddText("There appears to be no data.");
+					pPaveText->AddText("Have you taken a run yet?");
+					pPaveText->Draw();
 				}
 				// Because of some bizzare root oddity, the only way I can find to remove the fit
 				// parameters box is this. The painted graph isn't always available until the canvas
