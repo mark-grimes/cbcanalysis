@@ -364,6 +364,13 @@ cbcanalyser::SCurve& cbcanalyser::FedChannelSCurves::getStripSCurve( size_t stri
 	return stripSCurves_[stripNumber];
 }
 
+const cbcanalyser::SCurve& cbcanalyser::FedChannelSCurves::getStripSCurve( size_t stripNumber ) const
+{
+	const auto& findResult=stripSCurves_.find( stripNumber );
+	if( findResult==stripSCurves_.end() ) throw std::runtime_error( "No entry for '"+std::to_string(stripNumber)+"' in FED channel" );
+	return findResult->second;
+}
+
 std::vector<size_t> cbcanalyser::FedChannelSCurves::getValidStripIndices() const
 {
 	std::vector<size_t> returnValue;
@@ -487,6 +494,13 @@ void cbcanalyser::FedChannelSCurves::restoreFromStream( std::istream& inputStrea
 cbcanalyser::FedChannelSCurves& cbcanalyser::FedSCurves::getFedChannelSCurves( size_t fedChannelNumber )
 {
 	return fedChannelSCurves_[fedChannelNumber];
+}
+
+const cbcanalyser::FedChannelSCurves& cbcanalyser::FedSCurves::getFedChannelSCurves( size_t fedChannelNumber ) const
+{
+	const auto& findResult=fedChannelSCurves_.find( fedChannelNumber );
+	if( findResult==fedChannelSCurves_.end() ) throw std::runtime_error( "No entry for '"+std::to_string(fedChannelNumber)+"' in FED" );
+	return findResult->second;
 }
 
 cbcanalyser::SCurve& cbcanalyser::FedSCurves::getStripSCurve( size_t fedChannelNumber, size_t stripNumber )

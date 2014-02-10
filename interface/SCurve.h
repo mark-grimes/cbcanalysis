@@ -210,6 +210,7 @@ namespace cbcanalyser
 	{
 	public:
 		SCurve& getStripSCurve( size_t stripNumber );
+		const SCurve& getStripSCurve( size_t stripNumber ) const;
 		/** @brief Returns a vector of the strip indices that have data recorded for them. */
 		std::vector<size_t> getValidStripIndices() const;
 
@@ -237,6 +238,7 @@ namespace cbcanalyser
 	{
 	public:
 		FedChannelSCurves& getFedChannelSCurves( size_t fedChannelNumber );
+		const FedChannelSCurves& getFedChannelSCurves( size_t fedChannelNumber ) const;
 		SCurve& getStripSCurve( size_t fedChannelNumber, size_t stripNumber );
 		/** @brief Returns a vector of the channel indices that have data recorded for them. */
 		std::vector<size_t> getValidChannelIndices() const;
