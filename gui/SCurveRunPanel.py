@@ -13,6 +13,8 @@ from pyjamas.ui.Label import Label
 from pyjamas.ui.TextBox import TextBox
 from pyjamas.ui.Button import Button
 
+from pyjamas.ui.Image import Image
+
 from pyjamas.Canvas.GWTCanvas import GWTCanvas as Canvas
 from pyjamas.ui.Composite import Composite
 from pyjamas.Canvas import Color
@@ -24,7 +26,6 @@ from GlibRPCService import GlibRPCService
 from DataRunManager import DataRunManager
 from DisplayHistogramsPanel import DisplayHistogramsPanel
 
-
 class SCurveRunPanel :
 	
 	class onClickListener :
@@ -32,12 +33,17 @@ class SCurveRunPanel :
 			self._ClickPanel=panel	
 			
 		def onRemoteResponse(self, response, request_info):
-			#self._ClickPanel.launchButton.setEnabled(False)
-			for buttonName in self._ClickPanel.controlValueEntries:
-				pass
-				#self._ClickPanel.controlValueEntries[buttonName].setText(response[buttonName])
-			#self._ClickPanel.controlValueEntries["RangeHi"].setText(response.keys()[1])	
-			#self._ClickPanel.launchButton.setEnabled(True)
+			pass
+			
+		def onRemoteError(self, code, message, request_info):
+			ErrorMessage( "Unable to contact server" )
+
+	class loadImageListener:
+		def __init__(self, panel) :
+			self._loadImagePanel=panel	
+			
+		def onRemoteResponse(self, response, request_info):
+			self._loadImagePanel.image=response
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -90,10 +96,6 @@ class SCurveRunPanel :
 		self.mainPanel.setSpacing(15)
 		
 		self.controlValueEntries={} #controls the parameters of the s-curve
-
-		#self.graphCanvas=GraphCanvas(self)
-		
-		#self.rpcService.getSCurveValues( )	
 		
 		self.mainSettings=VerticalPanel("Control Settings")
 		self.startButton=VerticalPanel("Run Button")
@@ -117,9 +119,15 @@ class SCurveRunPanel :
 		
 		self.dataRunManager.registerEventHandler( self )
 		
-		#self.canvasPanel.add(graphCanvas)
+		self.imageTimer = Timer(notify=self.updateImage)
+		self.imageTimer.scheduleRepeating(5000)
+
 		
-		#self.mainPanel.add(self.drawCanvas(self))
+		self.image=Image("images/Three_Colours-Blue-Coffee-Sugar.jpg")
+
+		
+		self.mainPanel.add(self.image)
+		
 
 	def onDataTakingEvent( self, eventCode, details ) :
 		"""
@@ -133,28 +141,27 @@ class SCurveRunPanel :
 			self.launchButton.setEnabled(True)
 		elif eventCode==DataRunManager.DataTakingStatusEvent :
 			self.echo.setText("%3d%% - "%int(details['fractionComplete']*100+0.5)+details['statusString'] )
-
+			
 	def onChange( self, sender ) :
 		pass
 		
 	def onClick(self, sender):
-		self.msg = {"RangeLo":50, "RangeHi" :150, "Steps":1, "FileName":"test.png"}
 		
 		if sender==self.launchButton :
 			self.echo.setText("Initiating run")
 			rangeHigh=int(self.rangeHighBox.getText())
 			rangeLow=int(self.rangeLowBox.getText())
 			stepSize=int(self.stepSizeBox.getText())
-			self.dataRunManager.startSCurveRun( range(rangeLow,rangeHigh,stepSize) )
-			#self.rpcService.startSCurveRun(None, SCurveRunPanel.DoNothingListener() )		
+			self.dataRunManager.startSCurveRun( range(rangeLow,rangeHigh,stepSize) )	
 			
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
-		#a={}
-		#for name in self.controlValueEntries:
-			#a[name]=self.controlValueEntries[name]
-		#self.echo.setText(int(a["RangeLo"].getText()))
-		
+
+	def updateImage(self):
+		self.mainPanel.remove(self.image)
+		self.image=Image("images/Three_Colours-Blue-Coffee-Sugar.jpg")
+		self.mainPanel.add(self.image)
+	
 	def getPanel(self) :
 		return self.mainPanel
         
@@ -198,26 +205,5 @@ class SCurveRunPanel :
 			label.setWidth(maxWidth)
 
 		return flowPanel
-		
-class GraphCanvas: #broken at the moment - fb
-	
-	def __init__(self):
-		self.canvas = Canvas(self, 500, 500, 500, 500)
-		self.canvasName="S Curve"
-		#loadImages(['Three_Colours-Blue-Coffee-Sugar.jpg'], self)
-		
-	def draw (self):
-		#self.saveContext()
-		#self.drawImage(self.earth.getElement() ,-12,-12)
-		pass
-		
-		
-	def onImagesLoaded(self, imagesHandles):
-		#self.img = imagesHandles[0]
-		self.draw()			
-	
-	def onError(self):
-		pass
-	
 
 
