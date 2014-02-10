@@ -30,6 +30,11 @@
 #include "SLHCUpgradeTracker/CBCAnalysis/interface/HttpServer.h"
 #include "SLHCUpgradeTracker/CBCAnalysis/interface/SCurve.h"
 #include "TFile.h"
+#include "TEfficiency.h"
+#include "TCanvas.h"
+#include "TF1.h"
+#include "TGraphAsymmErrors.h"
+#include "TPaveStats.h"
 
 // Use the unnamed namespace for things only used in this file
 namespace
@@ -47,6 +52,10 @@ namespace
 		HttpRequestHandler() : threshold_(0) {}
 		virtual ~HttpRequestHandler() {}
 		virtual void handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply );
+		/** Copied this from http://stackoverflow.com/questions/154536/encode-decode-urls-in-c */
+		std::string urlDecode( std::string& inputString );
+		template<class T> std::vector<T> decodeStringToArray( const std::string& inputString );
+		template<class T> T convertString( const std::string& inputString );
 	protected:
 		void openDAQDumpFile( const std::string& filename );
 		cbcanalyser::FedSCurves connectedCBCSCurves_;
@@ -73,6 +82,20 @@ int main( int argc, char* argv[] )
 	try
 	{
 		HttpRequestHandler handler;
+		try
+		{
+			std::vector<std::string> parentArray=handler.decodeStringToArray<std::string>( "[[1, 2,3,4], [5,6,7] ] " );
+			for( const auto& string : parentArray )
+			{
+				std::vector<int> array=handler.decodeStringToArray<int>( string );
+				for( const auto value : array ) std::cout << value << ", ";
+				std::cout << std::endl;
+			}
+		}
+		catch( std::exception& error )
+		{
+			std::cout << "Exception : " << error.what() << std::endl;
+		}
 		httpserver::HttpServer server( handler );
 		server.start( "127.0.0.1", argv[1] );
 
@@ -172,6 +195,90 @@ namespace
 				outputFile.Write();
 			}
 			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+		}
+		else if( resource=="/saveHistogramPicture" )
+		{
+			// Look through the parameters and try and find the filename to save the plot to
+			std::string filename;
+			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
+			// Look through the parameters and try and get the array of arrays that shows the
+			// channels to include in the plot.
+			std::vector< std::vector<int> > channelsForEachCBC;
+			std::string channelsString;
+			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="channels" ) channelsString=paramValuePair.second;
+			try
+			{
+				output << "Trying to convert '" << channelsString << "' to array." << std::endl;
+				output << "Decoded, this is '" << urlDecode(channelsString) << "'" << std::endl;
+				std::vector<std::string> innerArrays=decodeStringToArray<std::string>( urlDecode(channelsString) );
+				for( const auto& arrayAsString : innerArrays )
+				{
+					channelsForEachCBC.push_back( decodeStringToArray<int>( arrayAsString ) );
+				}
+			}
+			catch( std::exception& error )
+			{
+				output << "Error! Couldn't get the array of arrays for the CBC channels (" << urlDecode(channelsString) << "): " << error.what() << "\n";
+			}
+
+			// Default to error, then I can change this if I'm successful
+			reply.status=httpserver::HttpServer::Reply::StatusType::bad_request;
+
+			if( filename.empty() ) output << "Error! no filename was supplied, or it's empty." << "\n";
+			else if( channelsForEachCBC.empty() )  output << "Error! no channels were specified to plot." << "\n";
+			else
+			{
+				std::vector< std::unique_ptr<TEfficiency> > histograms;
+
+				// Use a const reference to make sure I don't create entries by querying.
+				const cbcanalyser::FedSCurves& constCBCs=connectedCBCSCurves_;
+				for( size_t cbcIndex=0; cbcIndex<channelsForEachCBC.size(); ++cbcIndex )
+				{
+					const cbcanalyser::FedChannelSCurves& fedChannel=constCBCs.getFedChannelSCurves(cbcIndex);
+					for( const auto channelNumber : channelsForEachCBC[cbcIndex] )
+					{
+						output << "Adding CBC " << cbcIndex << " channel " << channelNumber << std::endl;
+						const cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(channelNumber);
+						histograms.push_back( std::move( sCurve.createHistogram( "Efficiency CBC "+std::to_string(cbcIndex)+" channel "+std::to_string(channelNumber) ) ) );
+						// Also fit the histogram
+						cbcanalyser::SCurve::fitHistogram( histograms.back() );
+					}
+				}
+
+				//std::unique_ptr<TCanvas> pCanvas( new TCanvas() );
+				std::unique_ptr<TCanvas> pCanvas( new TCanvas() );
+				std::string drawOption="";
+				for( const auto& pHistogram : histograms )
+				{
+					pHistogram->SetTitle("");
+					pHistogram->Draw(drawOption.c_str());
+					drawOption="same";
+				}
+				// Because of some bizzare root oddity, the only way I can find to remove the fit
+				// parameters box is this. The painted graph isn't always available until the canvas
+				// is updated, and this seems much faster after all the histograms have been plotted.
+				pCanvas->Update();
+				TList* pListOfPrimitives=pCanvas->GetListOfPrimitives();
+				for( int index=0; index<pListOfPrimitives->GetSize(); ++index )
+				{
+					TObject* pPrimitive=pListOfPrimitives->At(index);
+					if( pPrimitive->ClassName()==std::string("TEfficiency") )
+					{
+						TGraphAsymmErrors* pPaintedHistogram=static_cast<TEfficiency*>(pPrimitive)->GetPaintedGraph();
+						TPaveStats* pStatBox=static_cast<TPaveStats*>(pPaintedHistogram->GetListOfFunctions()->FindObject("stats"));
+						// Haven't figured out how to delete this, so clear the text and make the
+						// box invisible.
+						pStatBox->Clear();
+						pStatBox->SetFillStyle(0);
+						pStatBox->SetBorderSize(0);
+						pStatBox->SetOptFit(0000);
+						pStatBox->Clear("");
+					}
+				}
+
+				pCanvas->SaveAs( filename.c_str() );
+				reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+			}
 		}
 		else if( resource=="/setThreshold" )
 		{
@@ -308,6 +415,143 @@ namespace
 		reply.headers[1].value="text/plain";
 
 		std::cout << reply.content << std::endl;
+	}
+
+	template<class T>
+	std::vector<T> HttpRequestHandler::decodeStringToArray( const std::string& inputString )
+	{
+		std::vector<T> arrayEntries;
+		if( inputString.empty() ) return arrayEntries;
+		//if( inputString.front()!='[' ) throw std::runtime_error("decodeStringToArray - first character is not '['");
+		//if( inputString.back()!=']' ) throw std::runtime_error("decodeStringToArray - last character is not ']'");
+
+		size_t openCount=0; // The number of currently open brackets
+		size_t currentElementStart=std::string::npos; // The index in the string where the current array element starts
+		for( size_t index=0; index<inputString.size(); ++index )
+		{
+			if( inputString[index]=='[' )
+			{
+				++openCount;
+				if( openCount==1 )
+				{
+					if( currentElementStart==std::string::npos ) currentElementStart=index+1;
+					else throw std::runtime_error("decodeStringToArray - more than one root array");
+				}
+			}
+			else if( inputString[index]==']' )
+			{
+				if( openCount==0 ) throw std::runtime_error("decodeStringToArray - arrays do not close properly (more ']' than '[')");
+				--openCount;
+			}
+			else if( inputString[index]==',' && openCount==1 )
+			{
+				if( currentElementStart==std::string::npos ) throw std::runtime_error("decodeStringToArray - first character is not '['");
+				// Copy everything from the end of the last entry into a new string
+				// and add it to the array of entries.
+				T convertedType=convertString<T>( inputString.substr(currentElementStart,index-currentElementStart) );
+				arrayEntries.push_back( convertedType );
+				currentElementStart=index+1;
+			}
+		}
+		// Also need to add the very last entry
+		std::string lastStringEntry=inputString.substr(currentElementStart,inputString.size()-currentElementStart-1);
+		if( !lastStringEntry.empty() )
+		{
+			arrayEntries.push_back( convertString<T>( lastStringEntry ) );
+		}
+
+		if( openCount!=0 ) throw std::runtime_error("decodeStringToArray - arrays do not close properly (more '[' than ']')");
+		return arrayEntries;
+	}
+
+	template<>
+	std::string HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		return inputString;
+	}
+	template<>
+	float HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		float result=std::stof( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+	template<>
+	double HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		double result=std::stod( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+	template<>
+	long double HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		long double result=std::stold( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+	template<>
+	int HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		int result=std::stoi( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+	template<>
+	long HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		long result=std::stol( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+	template<>
+	unsigned long HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		unsigned long result=std::stoul( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+	template<>
+	long long HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		long long result=std::stoll( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+	template<>
+	unsigned long long HttpRequestHandler::convertString( const std::string& inputString )
+	{
+		size_t idx;
+		unsigned long long result=std::stoull( inputString, &idx );
+		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
+		return result;
+	}
+
+	std::string HttpRequestHandler::urlDecode( std::string& inputString )
+	{
+		std::string returnValue;
+		char ch;
+		size_t index;
+		unsigned int decodedCharacter;
+		for( index=0; index<inputString.length(); ++index )
+		{
+			if( int(inputString[index])==37 )
+			{
+				sscanf(inputString.substr(index+1,2).c_str(), "%x", &decodedCharacter);
+				ch=static_cast<char>(decodedCharacter);
+				returnValue+=ch;
+				index=index+2;
+			}
+			else returnValue+=inputString[index];
+		}
+		return returnValue;
 	}
 
 	void HttpRequestHandler::openDAQDumpFile( const std::string& filename )
