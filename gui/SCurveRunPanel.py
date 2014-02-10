@@ -19,11 +19,10 @@ from pyjamas.Canvas import Color
 #from pyjamas.Canvas.SVGCanvas import SVGCanvas as Canvas
 from pyjamas.Canvas.ImageLoader import loadImages
 
-from pyjamas.Timer import Timer
-
 from ErrorMessage import ErrorMessage
 from GlibRPCService import GlibRPCService
 from DataRunManager import DataRunManager
+from DisplayHistogramsPanel import DisplayHistogramsPanel
 
 
 class SCurveRunPanel :
@@ -112,10 +111,11 @@ class SCurveRunPanel :
 		self.mainPanel.add(self.startButton)
 		self.mainPanel.add(self.launchButton)
 		self.mainPanel.add(self.echo)
+		histogramDisplay=DisplayHistogramsPanel()
+		self.mainPanel.add( HTML( '<br><b>Results:</b> (note that selecting a lot of channels can take a very long time)') )
+		self.mainPanel.add( histogramDisplay.getPanel() )
 		
 		self.dataRunManager.registerEventHandler( self )
-		self.timer = Timer(notify=self.updateStatus)
-		#self.timer.scheduleRepeating(500)	
 		
 		#self.canvasPanel.add(graphCanvas)
 		
