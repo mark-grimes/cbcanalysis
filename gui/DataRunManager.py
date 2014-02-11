@@ -24,7 +24,7 @@ class DataRunManager(object) :
 	method to get the only running instance.
 	"""
 	pollingTime=1000
-	idlePollingTime=-1 # Longer polling time when I don't think I'm taking data.
+	idlePollingTime=4000 # Longer polling time when I don't think I'm taking data.
 	_onlyInstance=None
 	# The following members are used as an enum to describe what the event is
 	DataTakingStartedEvent=0
@@ -46,7 +46,8 @@ class DataRunManager(object) :
 		self.pollingTimer=Timer( notify=self.pollRPCService )
 		self.eventHandlers = []
 		self.fractionComplete = 1
-		self.statusString = "Uninitialised"
+		self.statusString = "Not taking data"
+		self.firstRun = True
 		# I'll poll once immediately on startup just in case the user is connecting to an
 		# already running service. The code that handles the response to this starts the
 		# timer running.
@@ -78,6 +79,11 @@ class DataRunManager(object) :
 		statusHasChanged=False
 		if (self.fractionComplete!=newFraction) or (self.statusString!=newStatus) :
 			statusHasChanged=True
+			if self.firstRun :
+				# If something is already running on initialisation, tell everything
+				for handler in self.eventHandlers :
+					handler.onDataTakingEvent( DataRunManager.DataTakingStartedEvent, None )
+		self.firstRun=False
 		self.fractionComplete=newFraction
 		self.statusString=newStatus
 		# only want to inform the listening classes if there is a change in the status
