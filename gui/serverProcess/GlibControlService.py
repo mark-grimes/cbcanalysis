@@ -88,25 +88,6 @@ class GlibControlService:
 		
 		for context in self.program.contexts :
 			context.forcedEnvironmentVariables = environmentVariables
-#			context.forcedEnvironmentVariables = {
-#				'CMSSW_BASE': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4',
-#				'SCRAM_ARCH': 'slc5_amd64_gcc462',
-#				'CMSSW_RELEASE_BASE': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4',
-#				'CMSSW_SEARCH_PATH': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/external/slc5_amd64_gcc462/data:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/data',
-#				'CMSSW_VERSION': 'CMSSW_5_3_4',
-#				'HOME': '/home/xtaldaq',
-#				'HOSTNAME': 'localhost.localdomain',
-#				#'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib',
-#				'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/phmag/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/phmag/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib',
-#				'ROOTSYS': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/',
-#				'SCRATCH': '/tmp',
-#				'XDAQ_DOCUMENT_ROOT': '/opt/xdaq/htdocs',
-#				'XDAQ_ELOG': 'SET',
-#				'XDAQ_OS': 'linux',
-#				'XDAQ_PLATFORM': 'x86',
-#				'XDAQ_ROOT': '/opt/xdaq',
-#				'USER': 'xtaldaq'
-#			}
 		self.program.initialiseCBCs() # Do the necessary initialisation to get information about the CBCs
 		# Need to provide the full executable path because this might not be in the path for different users
 		# When the analyser is spawned it takes on the environment of this script, so I'll modify that directly
@@ -154,20 +135,37 @@ class GlibControlService:
 	
 	def saveStateValues(self, msg):
 		
-		state = self.program.supervisor.I2CRegisterValues()
-		chipNames = state.keys()
-		registerNameValueTuple = state[chipNames[0]]
+		#state = self.program.supervisor.I2CRegisterValues()
+		#chipNames = state.keys()
+		#registerNameValueTuple = state[chipNames[0]]
 		
-	#	with open("/tmp/test.txt", 'w') as thefile:
-			#for item in msg:
-				#thefile.write("%s\n" %msg[item])
-			#thefile.write(registerNameValueTuple)
-	#	thefile.close()
+		saveState = self.program.supervisor.I2CRegisterValues(self.activeCBCs)
+		
+		with open("/tmp/"+msg, 'wb') as writeFile:
+			pickle.dump( saveState, writeFile)
+		writeFile.close()
 		
 		return msg
 	
 	def loadStateValues(self, msg):
-		return msg
+		with open("/tmp/"+msg, 'rb') as readFile:
+			loadState = pickle.load(readFile)
+		readFile.close()
+		
+		chipNames = loadState.keys()
+		
+		for name in chipNames:
+			if name == 'FE0CBC0':
+				registerNameValueTuple = loadState[loadState.keys()[0]]
+			elif name == 'FE0CBC1':
+				registerNameValueTuple = loadState[loadState.keys()[1]]
+			
+			self.program.supervisor.setI2c( registerNameValueTuple, chipNames = [name] )
+		
+		#for name, registerNameValueTuple in chipNames.iteritems():
+		#	self.program.supervisor.setI2c( registerNameValueTuple, [name] )
+		
+		return loadState
 	
 	def startProcesses(self, msg):
 		"""
