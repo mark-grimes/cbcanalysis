@@ -44,6 +44,7 @@ class I2CPanel :
 			
 		def onRemoteResponse(self, response, request_info):
 			self._saveStatePanel.returnStatement.setText("File loaded: " + self._saveStatePanel.loadFileName.getText())
+			self._saveStatePanel.rpcService.I2CRegisterValues( self._saveStatePanel.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self._saveStatePanel) ) #refresh of text boxes
 
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -101,14 +102,13 @@ class I2CPanel :
 
 	class RefreshListener :
 		"""
-		A class to listen for the response to any calls where I don't care about the result.
-		Later on I'll put in a popup if there's a message.
+		A class that will wait for a response before refreshing the status box
 		"""
 		def __init__(self, panel) :
 			self._Refresh = panel
 		
 		def onRemoteResponse(self, response, request_info):
-			self._Refresh.rpcService.I2CRegisterValues( self._Refresh.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self._Refresh) )	
+			self._Refresh.rpcService.I2CRegisterValues( self._Refresh.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self._Refresh) )	 #Live refresh of the status box
 			
 
 		def onRemoteError(self, code, message, request_info):
@@ -178,7 +178,6 @@ class I2CPanel :
 		elif sender == self.load:
 			msg = self.loadFileName.getText()
 			self.rpcService.loadStateValues(msg, I2CPanel.loadStateListener(self) )	
-			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )
 				
 		# Sender must be a text box. Need to format the input.
 		else : 
@@ -200,7 +199,6 @@ class I2CPanel :
 				for cbcName in self.getActiveCBCs() :
 					messageParameters[cbcName]={ sender.getTitle():value }
 					self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.RefreshListener(self) )
-					#self.rpcService.I2CRegisterValues( self.getActiveCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
 			
 			except ValueError:
 				sender.setStyleAttribute( "background-color", "#FF3333" )		
