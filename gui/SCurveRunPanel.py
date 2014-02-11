@@ -61,10 +61,19 @@ class SCurveRunPanel :
 		"""
 		def onRemoteResponse(self, response, request_info):
 			# Don't actually want to do anything
-			ErrorMessage( "Unable to contact server: "+str(response) )
 			pass
 
 		def onRemoteError(self, code, message, request_info):
+			ErrorMessage( "Unable to contact server: "+str(message) )
+
+	class SaveHistogramsListener :
+		def __init__( self, buttonToEnable ) :
+			self.buttonToEnable=buttonToEnable
+		def onRemoteResponse(self, response, request_info):
+			self.buttonToEnable.setEnabled(True)
+			ErrorMessage( "Histograms saved", messageTitle="Message" )
+		def onRemoteError(self, code, message, request_info):
+			self.buttonToEnable.setEnabled(True)
 			ErrorMessage( "Unable to contact server: "+str(message) )
 
 	class DataTakingStatusListener :
@@ -99,7 +108,7 @@ class SCurveRunPanel :
 		self.startButton=VerticalPanel("Run Button")
 		self.canvasPanel=VerticalPanel("Canvas")
 		
-		self.mainSettings.add(self.createControlPanel(["RangeLo","RangeHi","Steps","FileName"]))
+		self.mainSettings.add(self.createControlPanel(["RangeLo","RangeHi","Steps"]))
 		
 		self.echo=Label() # A good print screen method
 		
@@ -107,10 +116,21 @@ class SCurveRunPanel :
 		self.launchButton.addClickListener(self)
 		self.launchButton.setEnabled(True)
 		
+		saveHistogramsPanel=HorizontalPanel()
+		self.saveHistogramsButton=Button("Save histograms")
+		self.saveHistogramsButton.setEnabled(False) # Disable this button until data has been taken
+		self.saveHistogramsButton.addClickListener(self)
+		self.saveHistogramsFilename=TextBox("Filename")
+		self.saveHistogramsFilename.setText("/tmp/scurveHistograms.root")
+		self.saveHistogramsFilename.setVisibleLength(50)
+		saveHistogramsPanel.add( self.saveHistogramsButton )
+		saveHistogramsPanel.add( self.saveHistogramsFilename )
+		
 		self.mainPanel.add(self.mainSettings)
 		self.mainPanel.add(self.startButton)
 		self.mainPanel.add(self.launchButton)
 		self.mainPanel.add(self.echo)
+		self.mainPanel.add(saveHistogramsPanel)
 		histogramDisplay=DisplayHistogramsPanel()
 		self.mainPanel.add( HTML( '<br><b>Results:</b> (note that selecting a lot of channels can take a very long time)') )
 		self.mainPanel.add( histogramDisplay.getPanel() )
@@ -127,6 +147,7 @@ class SCurveRunPanel :
 		elif eventCode==DataRunManager.DataTakingFinishedEvent :
 			self.echo.setText("Data taking finished")
 			self.launchButton.setEnabled(True)
+			self.saveHistogramsButton.setEnabled(True)
 		elif eventCode==DataRunManager.DataTakingStatusEvent :
 			self.echo.setText("%3d%% - "%int(details['fractionComplete']*100+0.5)+details['statusString'] )
 
@@ -143,6 +164,9 @@ class SCurveRunPanel :
 			stepSize=int(self.stepSizeBox.getText())
 			self.dataRunManager.startSCurveRun( range(rangeLow,rangeHigh,stepSize) )
 			#self.rpcService.startSCurveRun(None, SCurveRunPanel.DoNothingListener() )		
+		if sender==self.saveHistogramsButton :
+			self.saveHistogramsButton.setEnabled(False)
+			self.rpcService.saveHistograms( self.saveHistogramsFilename.getText(), SCurveRunPanel.SaveHistogramsListener(self.saveHistogramsButton) )
 			
 	def updateStatus(self):
 		self.rpcService.getDataTakingStatus( None, SCurveRunPanel.DataTakingStatusListener(self) )
