@@ -23,6 +23,7 @@ from pyjamas.ui import HasHorizontalAlignment
 from I2CPanel import I2CPanel
 from OccupancyCheckPanel import OccupancyCheckPanel
 from SCurveRunPanel import SCurveRunPanel
+from CalibrateChannelTrimsPanel import CalibrateChannelTrimsPanel
 from DataRunManager import DataRunManager
 from ErrorMessage import ErrorMessage
 
@@ -40,6 +41,7 @@ class Client:
 		self.I2CPanel=I2CPanel()
 		self.SCurveRunPanel=SCurveRunPanel()
 		self.OccupancyCheckPanel=OccupancyCheckPanel()
+		self.CalibrateChannelTrimsPanel=CalibrateChannelTrimsPanel()
 
 		# mainPanel will have all of the working stuff in it
 		self.mainPanel=DockPanel()
@@ -71,14 +73,17 @@ class Client:
 		self.registersButton=Label("I2C Registers", StyleName="areaStyle")
 		self.occupanciesButton=Label("Test Occupancies", StyleName="areaStyle")
 		self.scurveButton=Label("S-Curve Run", StyleName="areaStyle")
+		self.calibrateTrimsButton=Label("Calibrate Trims", StyleName="areaStyle")
 
 		self.registersButton.addClickListener( self )
-		self.scurveButton.addClickListener( self )
 		self.occupanciesButton.addClickListener( self )
+		self.scurveButton.addClickListener( self )
+		self.calibrateTrimsButton.addClickListener( self )
 		
 		selectionPanel.add( self.registersButton )
 		selectionPanel.add( self.occupanciesButton )
 		selectionPanel.add( self.scurveButton )
+		selectionPanel.add( self.calibrateTrimsButton )
 
 		self.mainPanel.add( selectionPanel, DockPanel.WEST )
 		
@@ -135,6 +140,7 @@ class Client:
 		if panelButton==self.registersButton : self.activePanel=self.I2CPanel
 		elif panelButton==self.scurveButton : self.activePanel=self.SCurveRunPanel
 		elif panelButton==self.occupanciesButton : self.activePanel=self.OccupancyCheckPanel
+		elif panelButton==self.calibrateTrimsButton : self.activePanel=self.CalibrateChannelTrimsPanel
 		
 		# Set the new main panel
 		self.activePanel.getPanel().setStyleName( "selectedAreaStyle" )
