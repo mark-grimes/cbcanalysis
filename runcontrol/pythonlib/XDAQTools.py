@@ -156,14 +156,9 @@ def sendSoapStartCommand( host, port, configFilename, forcedEnvironmentVariables
 		'XDAQ_DOCUMENT_ROOT',
 		'ROOTSYS',
 		'LD_LIBRARY_PATH',
-		#'PYTHONPATH',
-		'CMSSW_SEARCH_PATH',
-		'HOME',
-		'HOSTNAME',
 		'SCRATCH',
 		'CMSSW_BASE',
-		'CMSSW_RELEASE_BASE',
-		'CMSSW_VERSION']
+		'CMSSW_RELEASE_BASE']
 	environmentVariables={}
 
 	# Try and set all of the required variables from anything given by forcedEnvironmentVariables.
