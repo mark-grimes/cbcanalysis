@@ -6,6 +6,7 @@ from pyjamas.ui.Image import Image
 from pyjamas.ui import HasHorizontalAlignment
 
 from GlibRPCService import GlibRPCService
+from DataRunManager import DataRunManager
 from ErrorMessage import ErrorMessage
 
 class DisplayHistogramsView(object) :
@@ -100,12 +101,23 @@ class DisplayHistogramsPanel(object) :
 		self.rpcService.connectedCBCNames( None, self )
 		# Bind the update button so that I can initiate the RPC call
 		self.view.getUpdateButton().addClickListener( self )
+		# Ask to receive notifications when data is being taken so that I can disable the button
+		DataRunManager.instance().registerEventHandler( self )
 
 	def setInputRootFile( self, inputRootFile ) :
 		self.inputRootFile=inputRootFile
 
 	def setOutputFile( self, outputFile ) :
 		self.outputFile=outputFile
+
+	def onDataTakingEvent( self, eventCode, details ) :
+		"""
+		Method that receives updates from DataRunManager
+		"""
+		if eventCode==DataRunManager.DataTakingStartedEvent :
+			self.view.disable()
+		elif eventCode==DataRunManager.DataTakingFinishedEvent :
+			self.view.enable()
 
 	def onRemoteResponse(self, response, request_info):
 		"""
@@ -140,7 +152,10 @@ class DisplayHistogramsPanel(object) :
 			ErrorMessage( "The source root file has not been set" )
 			return
 		selectedChannels=self.view.getSelectedCBCChannels()
-		if selectedChannels=={} :
+		totalChannels=0
+		for cbcName in selectedChannels.keys() :
+			totalChannels+=len(selectedChannels[cbcName])
+		if totalChannels==0 :
 			ErrorMessage( "No channels are selected. Select some channels." )
 			return
 		parameters={}
