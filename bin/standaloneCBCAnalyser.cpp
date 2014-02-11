@@ -35,6 +35,7 @@
 #include "TF1.h"
 #include "TGraphAsymmErrors.h"
 #include "TPaveStats.h"
+#include "TSystem.h"
 
 // Use the unnamed namespace for things only used in this file
 namespace
@@ -57,6 +58,15 @@ namespace
 		template<class T> std::vector<T> decodeStringToArray( const std::string& inputString );
 		template<class T> T convertString( const std::string& inputString );
 	protected:
+		httpserver::HttpServer::Reply::StatusType handle_analyseFile( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_saveHistograms( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_saveHistogramPicture( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_setThreshold( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_version( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_restoreFromRootFile( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_occupancies( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_fitParameters( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		httpserver::HttpServer::Reply::StatusType handle_reset( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
 		void openDAQDumpFile( const std::string& filename );
 		cbcanalyser::FedSCurves connectedCBCSCurves_;
 		float threshold_;
@@ -67,6 +77,12 @@ namespace
 
 int main( int argc, char* argv[] )
 {
+	//
+	// Remove all of the root signal handlers. I want this program to die
+	// with a simple SIGTERM.
+	//
+	for( int sig = 0; sig < kMAXSIGNALS; sig++) gSystem->ResetSignal((ESignals)sig);
+
 	if( argc!=2 )
 	{
 		std::cout << "Program to analyse DAQ dump files from GlibStreamer." << "\n"
@@ -115,6 +131,10 @@ namespace
 
 		std::stringstream output;
 
+		std::ostream* pDebugOutput=nullptr;
+		// Uncomment this line to make the delegate methods print extra info to the logs
+		pDebugOutput=&std::cerr;
+
 		for( const auto& paramValuePair : parameters )
 		{
 			if( paramValuePair.first=="debug" )
@@ -130,287 +150,46 @@ namespace
 		}
 
 
-		if( resource=="/" )
+		try
 		{
-			output << "Available commands (case sensitive):" << "\n"
-					<< "   analyseFile?filename=<filename>          Analyses the file with the supplied filename." << "\n"
-					<< "   restoreFromRootFile?filename=<filename>  Restores the data from a file previously saved with saveHistograms." << "\n"
-					<< "   setThreshold?value=<value>               Sets the current threshold (the abscissa for all plots) to the specified value." << "\n"
-					<< "   saveHistograms?filename=<filename>       Save the histograms in their current state to the specified file. If it already" << "\n"
-					<< "                                            exists it will be overwritten." << "\n"
-					<< "   version                                  States the version of this code." << "\n"
-					<< "   reset                                    Resets any data taken." << "\n"
-					<< "\n"
-					<< "You can add the parameter \"debug\" to any command to echo your request."
-					<< "\n";
-		}
-		else if( resource=="/analyseFile" || resource=="/analyzeFile" )
-		{
-			output << "analyseFile called" << "\n";
-			// Look through the parameters and try and find the filename to open
-			std::string filename;
-			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
-
-			if( filename.empty() ) output << "Error! no filename was supplied, or it's empty." << "\n";
+			if( resource=="/" )
+			{
+				output << "N.B. This is a little out of date at the moment. Have a look in " << __FILE__ << " line " << __LINE__ << " for more up to date details." << "\n"
+						<< "Available commands (case sensitive):" << "\n"
+						<< "   analyseFile?filename=<filename>          Analyses the file with the supplied filename." << "\n"
+						<< "   restoreFromRootFile?filename=<filename>  Restores the data from a file previously saved with saveHistograms." << "\n"
+						<< "   setThreshold?value=<value>               Sets the current threshold (the abscissa for all plots) to the specified value." << "\n"
+						<< "   saveHistograms?filename=<filename>       Save the histograms in their current state to the specified file. If it already" << "\n"
+						<< "                                            exists it will be overwritten." << "\n"
+						<< "   version                                  States the version of this code." << "\n"
+						<< "   reset                                    Resets any data taken." << "\n"
+						<< "\n"
+						<< "You can add the parameter \"debug\" to any command to echo your request."
+						<< "\n";
+			}
+			else if( resource=="/analyseFile" || resource=="/analyzeFile" ) reply.status=handle_analyseFile( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/saveHistograms" ) reply.status=handle_saveHistograms( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/saveHistogramPicture" ) reply.status=handle_saveHistogramPicture( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/setThreshold" ) reply.status=handle_setThreshold( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/version" ) reply.status=handle_version( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/restoreFromRootFile" ) reply.status=handle_restoreFromRootFile( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/occupancies" ) reply.status=handle_occupancies( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/fitParameters" ) reply.status=handle_fitParameters( output, std::cerr, parameters, pDebugOutput );
+			else if( resource=="/reset" ) reply.status=handle_reset( output, std::cerr, parameters, pDebugOutput );
 			else
 			{
-				try
-				{
-					openDAQDumpFile( filename );
-				}
-				catch( std::exception& error )
-				{
-					output << "Oh dear. An exception was encountered. Here it is: " << error.what() << "\n";
-				}
-			}
-			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-		}
-		else if( resource=="/saveHistograms" )
-		{
-			output << "saveHistograms called" << "\n";
-			// Look through the parameters and try and find the filename to open
-			std::string filename;
-			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
-
-			if( filename.empty() ) output << "Error! no filename was supplied, or it's empty." << "\n";
-			else
-			{
-				// Open a TFile and save the histograms to it
-				TFile outputFile( filename.c_str(), "RECREATE" );
-				connectedCBCSCurves_.createHistograms( &outputFile );
-				outputFile.Write();
-			}
-			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-		}
-		else if( resource=="/saveHistogramPicture" )
-		{
-			// Look through the parameters and try and find the filename to save the plot to
-			std::string filename;
-			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
-			// Look through the parameters and try and get the array of arrays that shows the
-			// channels to include in the plot.
-			std::vector< std::vector<int> > channelsForEachCBC;
-			std::string channelsString;
-			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="channels" ) channelsString=paramValuePair.second;
-			try
-			{
-				output << "Trying to convert '" << channelsString << "' to array." << std::endl;
-				output << "Decoded, this is '" << urlDecode(channelsString) << "'" << std::endl;
-				std::vector<std::string> innerArrays=decodeStringToArray<std::string>( urlDecode(channelsString) );
-				for( const auto& arrayAsString : innerArrays )
-				{
-					channelsForEachCBC.push_back( decodeStringToArray<int>( arrayAsString ) );
-				}
-			}
-			catch( std::exception& error )
-			{
-				output << "Error! Couldn't get the array of arrays for the CBC channels (" << urlDecode(channelsString) << "): " << error.what() << "\n";
-			}
-
-			// Default to error, then I can change this if I'm successful
-			reply.status=httpserver::HttpServer::Reply::StatusType::bad_request;
-
-			if( filename.empty() ) output << "Error! no filename was supplied, or it's empty." << "\n";
-			else if( channelsForEachCBC.empty() )  output << "Error! no channels were specified to plot." << "\n";
-			else
-			{
-				std::vector< std::unique_ptr<TEfficiency> > histograms;
-
-				// Use a const reference to make sure I don't create entries by querying.
-				const cbcanalyser::FedSCurves& constCBCs=connectedCBCSCurves_;
-				//
-				// First run through and create all of the histograms
-				//
-				for( size_t cbcIndex=0; cbcIndex<channelsForEachCBC.size(); ++cbcIndex )
-				{
-					try
-					{
-						const cbcanalyser::FedChannelSCurves& fedChannel=constCBCs.getFedChannelSCurves(cbcIndex);
-						for( const auto channelNumber : channelsForEachCBC[cbcIndex] )
-						{
-							output << "Adding CBC " << cbcIndex << " channel " << channelNumber << std::endl;
-							const cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(channelNumber);
-							histograms.push_back( std::move( sCurve.createHistogram( "Efficiency CBC "+std::to_string(cbcIndex)+" channel "+std::to_string(channelNumber) ) ) );
-							// Also fit the histogram
-							cbcanalyser::SCurve::fitHistogram( histograms.back() );
-						}
-					}
-					catch( std::runtime_error& exception )
-					{
-						output << "Got the error : " << exception.what() << std::endl;
-					}
-				}
-
-				std::unique_ptr<TCanvas> pCanvas( new TCanvas() );
-				std::string drawOption="";
-				for( const auto& pHistogram : histograms )
-				{
-					pHistogram->SetTitle("");
-					pHistogram->Draw(drawOption.c_str());
-					drawOption="same";
-				}
-				// Add an error to the plot in case there was no data
-				std::unique_ptr<TPaveText> pPaveText;
-				if( histograms.empty() )
-				{
-					pPaveText.reset( new TPaveText(0.05,0.1,0.95,0.8) );
-					pPaveText->AddText("There appears to be no data.");
-					pPaveText->AddText("Have you taken a run yet?");
-					pPaveText->Draw();
-				}
-				// Because of some bizzare root oddity, the only way I can find to remove the fit
-				// parameters box is this. The painted graph isn't always available until the canvas
-				// is updated, and this seems much faster after all the histograms have been plotted.
-				pCanvas->Update();
-				TList* pListOfPrimitives=pCanvas->GetListOfPrimitives();
-				for( int index=0; index<pListOfPrimitives->GetSize(); ++index )
-				{
-					TObject* pPrimitive=pListOfPrimitives->At(index);
-					if( pPrimitive->ClassName()==std::string("TEfficiency") )
-					{
-						TGraphAsymmErrors* pPaintedHistogram=static_cast<TEfficiency*>(pPrimitive)->GetPaintedGraph();
-						TPaveStats* pStatBox=static_cast<TPaveStats*>(pPaintedHistogram->GetListOfFunctions()->FindObject("stats"));
-						// Haven't figured out how to delete this, so clear the text and make the
-						// box invisible.
-						pStatBox->Clear();
-						pStatBox->SetFillStyle(0);
-						pStatBox->SetBorderSize(0);
-						pStatBox->SetOptFit(0000);
-						pStatBox->Clear("");
-					}
-				}
-
-				pCanvas->SaveAs( filename.c_str() );
-				reply.status=httpserver::HttpServer::Reply::StatusType::ok;
+				output << "Unknown command. You can see a list of the available commands by requesting the root resource (i.e. \"/\")." << "\n";
+				reply.status=httpserver::HttpServer::Reply::StatusType::not_found;
 			}
 		}
-		else if( resource=="/setThreshold" )
+		catch( std::exception& error )
 		{
-			output << "setThreshold called" << "\n";
-			// Look through the parameters and try and find the value to set to
-			std::string valueAsString;
-			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="value" ) valueAsString=paramValuePair.second;
-
-			if( valueAsString.empty() ) output << "Error! no value was supplied. Add \"?value=<threshold>\" to the URL." << "\n";
-			else
-			{
-				std::stringstream stringConverter;
-				stringConverter.str(valueAsString);
-				float variable;
-				stringConverter >> variable;
-				output << "Setting threshold to " << variable << "; previous value was " << threshold_ << "\n";
-				threshold_=variable;
-			}
-			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-		}
-		else if( resource=="/version" )
-		{
-			output << "Version=" << "0.0" << "\n";
-			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-		}
-		else if( resource=="/restoreFromRootFile" )
-		{
-			// Look through the parameters and try and find the filename to open
-			std::string filename;
-			for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
-
-			if( filename.empty() )
-			{
-				output << "Error! no filename was supplied, or it's empty." << "\n";
-				reply.status=httpserver::HttpServer::Reply::StatusType::bad_request;
-			}
-			else
-			{
-				try
-				{
-					// Open a TFile and try loading the TEfficiency objects from the different subdirectories
-					TFile outputFile( filename.c_str() );
-					if( outputFile.IsZombie() ) throw std::runtime_error( "Unable to open file "+filename );
-					connectedCBCSCurves_.restoreFromDirectory( &outputFile );
-					output << "State loaded from file " << filename << "\n";
-					reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-				}
-				catch( std::exception& error )
-				{
-					output << "Error! " << error.what() << "\n";
-					reply.status=httpserver::HttpServer::Reply::StatusType::internal_server_error;
-				}
-			}
-		}
-		else if( resource=="/occupancies" )
-		{
-			// At the moment I'm just going to return the occupancies for the first threshold
-			// that is stored for each channel. Later I'll code up some option to specify
-			// which threshold you want the occupancies for.
-			output << "{" << "\n";
-			std::vector<size_t> channelIndices=connectedCBCSCurves_.getValidChannelIndices();
-			for( std::vector<size_t>::const_iterator iIndexA=channelIndices.begin(); iIndexA!=channelIndices.end(); ++iIndexA )
-			{
-				output << "   \"CBC " << std::setfill('0') << std::setw(2)  << *iIndexA << "\": {" << "\n";
-				cbcanalyser::FedChannelSCurves& fedChannel=connectedCBCSCurves_.getFedChannelSCurves(*iIndexA);
-				std::vector<size_t> stripIndices=fedChannel.getValidStripIndices();
-				for( std::vector<size_t>::const_iterator iIndexB=stripIndices.begin(); iIndexB!=stripIndices.end(); ++iIndexB )
-				{
-					cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(*iIndexB);
-					std::vector<float> validThresholds=sCurve.getValidThresholds();
-					if( !validThresholds.empty() )
-					{
-						cbcanalyser::SCurveEntry& firstEntry=sCurve.getEntry( validThresholds.front() );
-						output << "      \"Channel " << std::setfill('0') << std::setw(3)  << *iIndexB << "\": " << firstEntry.fraction();
-						if( iIndexB+1 != stripIndices.end() ) output << ",";
-						output << "\n";
-					}
-				}
-				output << "   }";
-				if( iIndexA+1 != channelIndices.end() ) output << ",";
-				output << "\n";
-			}
-			output << "}" << "\n";
-			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-		}
-		else if( resource=="/fitParameters" )
-		{
-			output << "{" << "\n";
-			std::vector<size_t> channelIndices=connectedCBCSCurves_.getValidChannelIndices();
-			for( std::vector<size_t>::const_iterator iIndexA=channelIndices.begin(); iIndexA!=channelIndices.end(); ++iIndexA )
-			{
-				output << "   \"CBC " << std::setfill('0') << std::setw(2)  << *iIndexA << "\": {" << "\n";
-				cbcanalyser::FedChannelSCurves& fedChannel=connectedCBCSCurves_.getFedChannelSCurves(*iIndexA);
-				std::vector<size_t> stripIndices=fedChannel.getValidStripIndices();
-				for( std::vector<size_t>::const_iterator iIndexB=stripIndices.begin(); iIndexB!=stripIndices.end(); ++iIndexB )
-				{
-					cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(*iIndexB);
-					std::tuple<float,float,float,float,float> parameters=sCurve.fitParameters();
-					output << "      \"Channel " << std::setfill('0') << std::setw(3)  << *iIndexB
-							<< "\": { \"chi2\": " << std::get<0>(parameters)
-							<< ", \"ndf\":" << std::get<1>(parameters)
-							<< ", \"maxEfficiency\":" << std::get<2>(parameters)
-							<< ", \"standardDeviation\":" << std::get<3>(parameters)
-							<< ", \"mean\":" << std::get<4>(parameters) << " }";
-					if( iIndexB+1 != stripIndices.end() ) output << ",";
-					output << "\n";
-				}
-				output << "   }";
-				if( iIndexA+1 != channelIndices.end() ) output << ",";
-				output << "\n";
-			}
-			output << "}" << "\n";
-			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-		}
-		else if( resource=="/reset" )
-		{
-			output << "Reset called. Removing all data." << "\n";
-			connectedCBCSCurves_=cbcanalyser::FedSCurves();
-			reply.status=httpserver::HttpServer::Reply::StatusType::ok;
-		}
-		else
-		{
-			output << "Unknown command. You can see a list of the available commands by requesting the root resource (i.e. \"/\")." << "\n";
-			reply.status=httpserver::HttpServer::Reply::StatusType::not_found;
+			std::cout << "HttpRequestHandler::handleRequest - some kind of exception was thrown: " << error.what() << std::endl;
+			output << "An exception was thrown. Check the server logs for details." << "\n";
+			reply.status=httpserver::HttpServer::Reply::StatusType::internal_server_error;
 		}
 
 		// Status should already have been set in the "if" statements above
-		//reply.status=httpserver::HttpServer::Reply::StatusType::ok;
 		reply.content=output.str();
 		reply.headers.resize( 2 );
 		reply.headers[0].name="Content-Length";
@@ -418,7 +197,303 @@ namespace
 		reply.headers[1].name="Content-Type";
 		reply.headers[1].value="text/plain";
 
-		std::cout << reply.content << std::endl;
+		std::cerr << reply.content << std::endl;
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_analyseFile( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		if( pDebugOutput ) (*pDebugOutput) << "analyseFile called" << "\n";
+		// Look through the parameters and try and find the filename to open
+		std::string filename;
+		for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
+
+		if( filename.empty() )
+		{
+			errorLog << "HttpRequestHandler::handle_analyseFile - Error! no filename was supplied, or it's empty." << "\n";
+			return httpserver::HttpServer::Reply::StatusType::bad_request;
+		}
+		else
+		{
+			try
+			{
+				openDAQDumpFile( filename );
+			}
+			catch( std::exception& error )
+			{
+				errorLog << "HttpRequestHandler::handle_analyseFile - Oh dear. An exception was encountered. Here it is: " << error.what() << "\n";
+				return httpserver::HttpServer::Reply::StatusType::internal_server_error;
+			}
+		}
+
+		return httpserver::HttpServer::Reply::StatusType::ok;
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_saveHistograms( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		if( pDebugOutput ) (*pDebugOutput) << "saveHistograms called" << "\n";
+		// Look through the parameters and try and find the filename to open
+		std::string filename;
+		for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
+
+		if( filename.empty() )
+		{
+			errorLog << "Error! no filename was supplied, or it's empty." << "\n";
+			return httpserver::HttpServer::Reply::StatusType::bad_request;
+		}
+		else
+		{
+			// Open a TFile and save the histograms to it
+			TFile outputFile( filename.c_str(), "RECREATE" );
+			connectedCBCSCurves_.createHistograms( &outputFile );
+			outputFile.Write();
+		}
+		return httpserver::HttpServer::Reply::StatusType::ok;
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_saveHistogramPicture( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		// Look through the parameters and try and find the filename to save the plot to
+		std::string filename;
+		for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
+		// Look through the parameters and try and get the array of arrays that shows the
+		// channels to include in the plot.
+		std::vector< std::vector<int> > channelsForEachCBC;
+		std::string channelsString;
+		for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="channels" ) channelsString=paramValuePair.second;
+		try
+		{
+			if( pDebugOutput ) (*pDebugOutput) << "Trying to convert '" << channelsString << "' to array." << std::endl;
+			if( pDebugOutput ) (*pDebugOutput) << "Decoded, this is '" << urlDecode(channelsString) << "'" << std::endl;
+			std::vector<std::string> innerArrays=decodeStringToArray<std::string>( urlDecode(channelsString) );
+			for( const auto& arrayAsString : innerArrays )
+			{
+				channelsForEachCBC.push_back( decodeStringToArray<int>( arrayAsString ) );
+			}
+		}
+		catch( std::exception& error )
+		{
+			errorLog << "HttpRequestHandler::handle_saveHistogramPicture - Error! Couldn't get the array of arrays for the CBC channels (" << urlDecode(channelsString) << "): " << error.what() << "\n";
+			return httpserver::HttpServer::Reply::StatusType::bad_request;
+		}
+
+		if( filename.empty() )
+		{
+			errorLog << "HttpRequestHandler::handle_saveHistogramPicture - Error! no filename was supplied, or it's empty." << "\n";
+			return httpserver::HttpServer::Reply::StatusType::bad_request;
+		}
+		else if( channelsForEachCBC.empty() )
+		{
+			errorLog << "HttpRequestHandler::handle_saveHistogramPicture - Error! no channels were specified to plot." << "\n";
+			return httpserver::HttpServer::Reply::StatusType::bad_request;
+		}
+		else
+		{
+			std::vector< std::unique_ptr<TEfficiency> > histograms;
+
+			// Use a const reference to make sure I don't create entries by querying.
+			const cbcanalyser::FedSCurves& constCBCs=connectedCBCSCurves_;
+			//
+			// First run through and create all of the histograms
+			//
+			for( size_t cbcIndex=0; cbcIndex<channelsForEachCBC.size(); ++cbcIndex )
+			{
+				if( pDebugOutput ) (*pDebugOutput)  << "Trying CBC " << cbcIndex << "\n";
+				try
+				{
+					const cbcanalyser::FedChannelSCurves& fedChannel=constCBCs.getFedChannelSCurves(cbcIndex);
+					for( const auto channelNumber : channelsForEachCBC[cbcIndex] )
+					{
+						//if( pDebugOutput ) (*pDebugOutput) << "Adding CBC " << cbcIndex << " channel " << channelNumber << std::endl;
+						const cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(channelNumber);
+						histograms.push_back( std::move( sCurve.createHistogram( "Efficiency CBC "+std::to_string(cbcIndex)+" channel "+std::to_string(channelNumber) ) ) );
+						// Also fit the histogram
+						cbcanalyser::SCurve::fitHistogram( histograms.back() );
+					}
+				}
+				catch( std::runtime_error& exception )
+				{
+					errorLog << "HttpRequestHandler::handle_saveHistogramPicture - Got the error : " << exception.what() << std::endl;
+				}
+			}
+
+			if( pDebugOutput ) (*pDebugOutput) << "Histograms created" << std::endl;
+
+			std::unique_ptr<TCanvas> pCanvas( new TCanvas() );
+			std::string drawOption="";
+			for( const auto& pHistogram : histograms )
+			{
+				pHistogram->SetTitle("");
+				pHistogram->Draw(drawOption.c_str());
+				drawOption="same";
+			}
+
+			if( pDebugOutput ) (*pDebugOutput) << "Histograms drawn" << std::endl;
+
+			// Add an error to the plot in case there was no data
+			std::unique_ptr<TPaveText> pPaveText;
+			if( histograms.empty() )
+			{
+				pPaveText.reset( new TPaveText(0.05,0.1,0.95,0.8) );
+				pPaveText->AddText("There appears to be no data.");
+				pPaveText->AddText("Have you taken a run yet?");
+				pPaveText->Draw();
+			}
+			// Because of some bizarre root oddity, the only way I can find to remove the fit
+			// parameters box is this. The painted graph isn't always available until the canvas
+			// is updated, and this seems much faster after all the histograms have been plotted.
+			pCanvas->Update();
+			TList* pListOfPrimitives=pCanvas->GetListOfPrimitives();
+			for( int index=0; index<pListOfPrimitives->GetSize(); ++index )
+			{
+				TObject* pPrimitive=pListOfPrimitives->At(index);
+				if( pPrimitive->ClassName()==std::string("TEfficiency") )
+				{
+					TGraphAsymmErrors* pPaintedHistogram=static_cast<TEfficiency*>(pPrimitive)->GetPaintedGraph();
+					TPaveStats* pStatBox=static_cast<TPaveStats*>(pPaintedHistogram->GetListOfFunctions()->FindObject("stats"));
+					// Haven't figured out how to delete this, so clear the text and make the
+					// box invisible.
+					pStatBox->Clear();
+					pStatBox->SetFillStyle(0);
+					pStatBox->SetBorderSize(0);
+					pStatBox->SetOptFit(0000);
+					pStatBox->Clear("");
+				}
+			}
+			if( pDebugOutput ) (*pDebugOutput) << "Text boxes removed" << std::endl;
+
+			pCanvas->SaveAs( filename.c_str() );
+			return httpserver::HttpServer::Reply::StatusType::ok;
+		}
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_setThreshold( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		if( pDebugOutput ) (*pDebugOutput) << "setThreshold called" << "\n";
+		// Look through the parameters and try and find the value to set to
+		std::string valueAsString;
+		for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="value" ) valueAsString=paramValuePair.second;
+
+		if( valueAsString.empty() )
+		{
+			errorLog << "HttpRequestHandler::handle_saveHistogramPicture - Error! no value was supplied. Add \"?value=<threshold>\" to the URL." << "\n";
+			return httpserver::HttpServer::Reply::StatusType::bad_request;
+		}
+		else
+		{
+			std::stringstream stringConverter;
+			stringConverter.str(valueAsString);
+			float variable;
+			stringConverter >> variable;
+			if( pDebugOutput ) (*pDebugOutput) << "Setting threshold to " << variable << "; previous value was " << threshold_ << "\n";
+			threshold_=variable;
+		}
+
+		return httpserver::HttpServer::Reply::StatusType::ok;
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_version( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		reply << "Version=" << "0.0" << "\n";
+		return httpserver::HttpServer::Reply::StatusType::ok;
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_restoreFromRootFile( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		// Look through the parameters and try and find the filename to open
+		std::string filename;
+		for( const auto& paramValuePair : parameters ) if( paramValuePair.first=="filename" ) filename=paramValuePair.second;
+
+		if( filename.empty() )
+		{
+			errorLog << "HttpRequestHandler::handle_restoreFromRootFile - Error! no filename was supplied, or it's empty." << "\n";
+			return httpserver::HttpServer::Reply::StatusType::bad_request;
+		}
+		else
+		{
+			try
+			{
+				// Open a TFile and try loading the TEfficiency objects from the different subdirectories
+				TFile outputFile( filename.c_str() );
+				if( outputFile.IsZombie() ) throw std::runtime_error( "Unable to open file "+filename );
+				connectedCBCSCurves_.restoreFromDirectory( &outputFile );
+				if( pDebugOutput ) (*pDebugOutput)  << "State loaded from file " << filename << "\n";
+				return httpserver::HttpServer::Reply::StatusType::ok;
+			}
+			catch( std::exception& error )
+			{
+				errorLog << "Error! " << error.what() << "\n";
+				return httpserver::HttpServer::Reply::StatusType::internal_server_error;
+			}
+		}
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_occupancies( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		// At the moment I'm just going to return the occupancies for the first threshold
+		// that is stored for each channel. Later I'll code up some option to specify
+		// which threshold you want the occupancies for.
+		reply << "{" << "\n";
+		std::vector<size_t> channelIndices=connectedCBCSCurves_.getValidChannelIndices();
+		for( std::vector<size_t>::const_iterator iIndexA=channelIndices.begin(); iIndexA!=channelIndices.end(); ++iIndexA )
+		{
+			reply << "   \"CBC " << std::setfill('0') << std::setw(2)  << *iIndexA << "\": {" << "\n";
+			cbcanalyser::FedChannelSCurves& fedChannel=connectedCBCSCurves_.getFedChannelSCurves(*iIndexA);
+			std::vector<size_t> stripIndices=fedChannel.getValidStripIndices();
+			for( std::vector<size_t>::const_iterator iIndexB=stripIndices.begin(); iIndexB!=stripIndices.end(); ++iIndexB )
+			{
+				cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(*iIndexB);
+				std::vector<float> validThresholds=sCurve.getValidThresholds();
+				if( !validThresholds.empty() )
+				{
+					cbcanalyser::SCurveEntry& firstEntry=sCurve.getEntry( validThresholds.front() );
+					reply << "      \"Channel " << std::setfill('0') << std::setw(3)  << *iIndexB << "\": " << firstEntry.fraction();
+					if( iIndexB+1 != stripIndices.end() ) reply << ",";
+					reply << "\n";
+				}
+			}
+			reply << "   }";
+			if( iIndexA+1 != channelIndices.end() ) reply << ",";
+			reply << "\n";
+		}
+		reply << "}" << "\n";
+		return httpserver::HttpServer::Reply::StatusType::ok;
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_fitParameters( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		reply << "{" << "\n";
+		std::vector<size_t> channelIndices=connectedCBCSCurves_.getValidChannelIndices();
+		for( std::vector<size_t>::const_iterator iIndexA=channelIndices.begin(); iIndexA!=channelIndices.end(); ++iIndexA )
+		{
+			reply << "   \"CBC " << std::setfill('0') << std::setw(2)  << *iIndexA << "\": {" << "\n";
+			cbcanalyser::FedChannelSCurves& fedChannel=connectedCBCSCurves_.getFedChannelSCurves(*iIndexA);
+			std::vector<size_t> stripIndices=fedChannel.getValidStripIndices();
+			for( std::vector<size_t>::const_iterator iIndexB=stripIndices.begin(); iIndexB!=stripIndices.end(); ++iIndexB )
+			{
+				cbcanalyser::SCurve& sCurve=fedChannel.getStripSCurve(*iIndexB);
+				std::tuple<float,float,float,float,float> parameters=sCurve.fitParameters();
+				reply << "      \"Channel " << std::setfill('0') << std::setw(3)  << *iIndexB
+						<< "\": { \"chi2\": " << std::get<0>(parameters)
+						<< ", \"ndf\":" << std::get<1>(parameters)
+						<< ", \"maxEfficiency\":" << std::get<2>(parameters)
+						<< ", \"standardDeviation\":" << std::get<3>(parameters)
+						<< ", \"mean\":" << std::get<4>(parameters) << " }";
+				if( iIndexB+1 != stripIndices.end() ) reply << ",";
+				reply << "\n";
+			}
+			reply << "   }";
+			if( iIndexA+1 != channelIndices.end() ) reply << ",";
+			reply << "\n";
+		}
+		reply << "}" << "\n";
+		return httpserver::HttpServer::Reply::StatusType::ok;
+	}
+
+	httpserver::HttpServer::Reply::StatusType HttpRequestHandler::handle_reset( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput )
+	{
+		if( pDebugOutput ) (*pDebugOutput) << "Reset called. Removing all data." << "\n";
+		connectedCBCSCurves_=cbcanalyser::FedSCurves();
+		return httpserver::HttpServer::Reply::StatusType::ok;
 	}
 
 	template<class T>
