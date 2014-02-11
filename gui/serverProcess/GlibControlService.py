@@ -31,12 +31,15 @@
 import sys, os, inspect, socket, time, signal
 from CGIHandlerFromStrings import CGIHandlerFromStrings
 
+import cPickle as pickle
+
 # The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
 # this line gets the directory of this file. I then look three parents up to get the directory
 # of the CBCAnalysis installation.
 INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
 sys.path.append( os.path.join( INSTALLATION_PATH, "runcontrol" ) )
 
+from environmentVariables import getEnvironmentVariables
 from pythonlib.SimpleGlibProgram import SimpleGlibProgram
 from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import SCurveRun
@@ -72,34 +75,39 @@ class GlibControlService:
 	def __init__(self):
 		self.boardAddress = "192.168.0.175"
 		self.program = SimpleGlibProgram( os.path.join( INSTALLATION_PATH, "runcontrol", "GlibSuper.xml" ) )
-		# Need to $CMSSW_BASE/bin to the path so that the analyser program can start
+		
+		# Need to $CMSSW_BASE/bin to the path so that the analyser program can start. To get
+		# these environment variables use the system setting in runcontrol/environmentVariables.py.
+		# I can't get them from the current environment because they might not be set for
+		# the current user (apache won't have any of them set).
+		environmentVariables=getEnvironmentVariables()
+		
 		for context in self.program.contexts :
-			context.forcedEnvironmentVariables = {
-				'CMSSW_BASE': '/home/phmag/CMSSW_5_3_4',
-				'SCRAM_ARCH': 'slc5_amd64_gcc462',
-				'CMSSW_RELEASE_BASE': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4',
-				'CMSSW_SEARCH_PATH': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/external/slc5_amd64_gcc462/data:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/data',
-				'CMSSW_VERSION': 'CMSSW_5_3_4',
-				'HOME': '/home/xtaldaq',
-				'HOSTNAME': 'localhost.localdomain',
-				#'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib',
-				'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/phmag/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/phmag/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib',
-				'ROOTSYS': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/',
-				'SCRATCH': '/tmp',
-				'XDAQ_DOCUMENT_ROOT': '/opt/xdaq/htdocs',
-				'XDAQ_ELOG': 'SET',
-				'XDAQ_OS': 'linux',
-				'XDAQ_PLATFORM': 'x86',
-				'XDAQ_ROOT': '/opt/xdaq',
-				'USER': 'xtaldaq'
-			}
+			context.forcedEnvironmentVariables = environmentVariables
+#			context.forcedEnvironmentVariables = {
+#				'CMSSW_BASE': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4',
+#				'SCRAM_ARCH': 'slc5_amd64_gcc462',
+#				'CMSSW_RELEASE_BASE': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4',
+#				'CMSSW_SEARCH_PATH': '/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/src:/home/xtaldaq/CBCAnalyzer/CMSSW_5_3_4/external/slc5_amd64_gcc462/data:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/src:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/data',
+#				'CMSSW_VERSION': 'CMSSW_5_3_4',
+#				'HOME': '/home/xtaldaq',
+#				'HOSTNAME': 'localhost.localdomain',
+#				#'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462/:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/lib',
+#				'LD_LIBRARY_PATH': '/usr/local/lib:/opt/xdaq/lib:/opt/cactus/lib:/home/phmag/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/phmag/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/lib/slc5_amd64_gcc462:/home/xtaldaq/cmssw/slc5_amd64_gcc462/cms/cmssw/CMSSW_5_3_4/external/slc5_amd64_gcc462/lib:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib64:/home/xtaldaq/cmssw/slc5_amd64_gcc462/external/gcc/4.6.2/lib',
+#				'ROOTSYS': '/home/xtaldaq/cmssw/slc5_amd64_gcc462/lcg/root/5.32.00-cms17/',
+#				'SCRATCH': '/tmp',
+#				'XDAQ_DOCUMENT_ROOT': '/opt/xdaq/htdocs',
+#				'XDAQ_ELOG': 'SET',
+#				'XDAQ_OS': 'linux',
+#				'XDAQ_PLATFORM': 'x86',
+#				'XDAQ_ROOT': '/opt/xdaq',
+#				'USER': 'xtaldaq'
+#			}
 		self.program.initialiseCBCs() # Do the necessary initialisation to get information about the CBCs
 		# Need to provide the full executable path because this might not be in the path for different users
-		CMSSW_BASE=self.program.contexts[0].forcedEnvironmentVariables['CMSSW_BASE']
-		SCRAM_ARCH=self.program.contexts[0].forcedEnvironmentVariables['SCRAM_ARCH']
-		LD_LIBRARY_PATH=self.program.contexts[0].forcedEnvironmentVariables['LD_LIBRARY_PATH']
-		os.environ['PATH']=os.environ['PATH']+':'+CMSSW_BASE+"/bin/"+SCRAM_ARCH
-		os.environ['LD_LIBRARY_PATH']=LD_LIBRARY_PATH
+		# When the analyser is spawned it takes on the environment of this script, so I'll modify that directly
+		os.environ['PATH']=environmentVariables['PATH']
+		os.environ['LD_LIBRARY_PATH']=environmentVariables['LD_LIBRARY_PATH']
 		self.analysisControl = AnalyserControl( "127.0.0.1", "50000" )
 		self.analysisControl.reset()
 		# The members below are for handling the thread that takes data
