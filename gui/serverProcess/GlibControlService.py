@@ -39,7 +39,11 @@ import cPickle as pickle
 INSTALLATION_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), os.pardir, os.pardir))
 sys.path.append( os.path.join( INSTALLATION_PATH, "runcontrol" ) )
 
-from environmentVariables import getEnvironmentVariables
+try :
+	from environmentVariables import getEnvironmentVariables
+except ImportError :
+	print "No runcontrol/environmentVariables.py file found. Using the defaults from runcontrol/environmentVariables_default.py"
+	from environmentVariables_default import getEnvironmentVariables
 from pythonlib.SimpleGlibProgram import SimpleGlibProgram
 from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import SCurveRun
