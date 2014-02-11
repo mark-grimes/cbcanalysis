@@ -30,7 +30,6 @@
 
 import sys, os, inspect, socket, time, signal
 from CGIHandlerFromStrings import CGIHandlerFromStrings
-import cPickle as pickle
 
 # The "os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))" part of
 # this line gets the directory of this file. I then look three parents up to get the directory
@@ -143,40 +142,20 @@ class GlibControlService:
 	
 	def saveStateValues(self, msg):
 		
-	#	state = self.program.supervisor.I2CRegisterValues()
-	#	chipNames = state.keys()
-	#	registerNameValueTuple = state[chipNames[0]]
+		state = self.program.supervisor.I2CRegisterValues()
+		chipNames = state.keys()
+		registerNameValueTuple = state[chipNames[0]]
 		
-		with open("/tmp/test.txt", 'w') as thefile:
-			for item in msg:
-				thefile.write("%s\n" %msg[item])
-			thefile.write(registerNameValueTuple)
-		thefile.close()
+	#	with open("/tmp/test.txt", 'w') as thefile:
+			#for item in msg:
+				#thefile.write("%s\n" %msg[item])
+			#thefile.write(registerNameValueTuple)
+	#	thefile.close()
 		
 		return msg
 	
 	def loadStateValues(self, msg):
-
-		with open("/tmp/"+msg, 'rb') as readFile:
-			loadState = pickle.load(readFile)
-		readFile.close()
-
-		chipNames = loadState.keys()
-
-		for name in chipNames:
-			if name == 'FE0CBC0':
-				registerNameValueTuple = loadState[loadState.keys()[0]]
-			elif name == 'FE0CBC1':
-				registerNameValueTuple = loadState[loadState.keys()[1]]
-			#for registerName in msg[1]:
-
-
-		self.program.supervisor.setI2c( registerNameValueTuple, chipNames = [name] )
-
-		#for name, registerNameValueTuple in chipNames.iteritems():
-		#	self.program.supervisor.setI2c( registerNameValueTuple, [name] )
-
-		return loadState
+		return msg
 	
 	def startProcesses(self, msg):
 		"""
