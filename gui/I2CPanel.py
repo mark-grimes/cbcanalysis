@@ -197,11 +197,11 @@ class I2CPanel :
 				for cbcName in self.getActiveCBCs() :
 					messageParameters[cbcName]={ sender.getTitle():value }
 					self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener(self) )
-				self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
-			
+					self.rpcService.I2CRegisterValues( self.getActiveCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
 			
 			except ValueError:
 				sender.setStyleAttribute( "background-color", "#FF3333" )		
+		#self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
 		#self.echoSelection()
 	
 	def echoSelection(self): #fb - a good "print screen" method
