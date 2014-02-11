@@ -99,14 +99,17 @@ class I2CPanel :
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
 
-	class DoNothingListener :
+	class RefreshListener :
 		"""
 		A class to listen for the response to any calls where I don't care about the result.
 		Later on I'll put in a popup if there's a message.
 		"""
+		def __init__(self, panel) :
+			self._Refresh = panel
+		
 		def onRemoteResponse(self, response, request_info):
-			# Don't actually want to do anything
-			pass
+			self._Refresh.rpcService.I2CRegisterValues( self._Refresh.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self._Refresh) )	
+			
 
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -196,12 +199,12 @@ class I2CPanel :
 				messageParameters = {}
 				for cbcName in self.getActiveCBCs() :
 					messageParameters[cbcName]={ sender.getTitle():value }
-					self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.DoNothingListener(self) )
-					self.rpcService.I2CRegisterValues( self.getActiveCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
+					self.rpcService.setI2CRegisterValues( messageParameters, I2CPanel.RefreshListener(self) )
+					#self.rpcService.I2CRegisterValues( self.getActiveCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
 			
 			except ValueError:
 				sender.setStyleAttribute( "background-color", "#FF3333" )		
-		#self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )	
+		
 		#self.echoSelection()
 	
 	def echoSelection(self): #fb - a good "print screen" method
