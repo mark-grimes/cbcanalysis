@@ -248,6 +248,9 @@ class GlibControlService:
 	def createHistogram( self, msg ) :
 		self.analysisControl.saveHistogramPicture( INSTALLATION_PATH+"/gui/output/"+msg['outputFilename'], msg['cbcChannelRange'] )
 
+	def saveHistograms( self, msg ) :
+		self.analysisControl.saveHistograms( msg )
+
 if __name__ == '__main__':	
 
 	listeningAddress="/tmp/CBCTestStand_rpc_server"
