@@ -5,7 +5,14 @@ class AnalyserControl :
 	Class to interact with the C++ analysis program. This tells the program what to do by sending it
 	HTTP requests.
 	"""
-	def __init__ ( self, host, port, startServerIfNotRunning=True ):
+	def __init__ ( self, host, port, startServerIfNotRunning=True, environmentVariables=None ):
+		"""
+		Connects to the instance running on the given host and port. If the instance is not running
+		and startServerIfNotRunning is True, the server executable will be spawned on that port.
+		If environmentVariables is not None, then that dictionary will be used as the environment
+		variables to spawn the executable. If it's None then the current environment is used. If
+		the server is already running then supplying environmentVariables has no effect.
+		"""
 		self.connection=httplib.HTTPConnection( host+":"+str(port) )
 		# Make sure the connection is closed, because all the other methods assume
 		# it's in that state. Presumably the connection will have failed at that
@@ -22,7 +29,7 @@ class AnalyserControl :
 				import subprocess
 				print "AnalyserControl: server isn't running. Going to start on port "+str(port)+"."
 				devnull=open("/dev/null")
-				subprocess.Popen( ['standaloneCBCAnalyser','50000'], stdout=devnull )
+				subprocess.Popen( ['standaloneCBCAnalyser','50000'], stdout=devnull, env=environmentVariables )
 				time.sleep(1) # Sleep for a second to allow the new process to open the port
 			else :
 				raise Exception( "The standaloneCBCAnalyser server is not running. Either start it manually or retry with startServerIfNotRunning set to True." )
