@@ -42,7 +42,10 @@ namespace
 {
 	/** @brief Class that handles the HTTP requests.
 	 *
-	 * Most of the functionality is in here.
+	 * Most of the functionality is in here. When a HTTP request comes in, the server passes it on to
+	 * handleRequest(...). This looks at the resource requested and passes it on to the appropriate
+	 * delegate method. E.g. if the resource "/analyseFile" is requested then the method handle_analyseFile
+	 * is called to deal with it.
 	 *
 	 * @author Mark Grimes (mark.grimes@bristol.ac.uk)
 	 * @date 06/Jan/2014
@@ -53,10 +56,6 @@ namespace
 		HttpRequestHandler() : threshold_(0) {}
 		virtual ~HttpRequestHandler() {}
 		virtual void handleRequest( const httpserver::HttpServer::Request& request, httpserver::HttpServer::Reply& reply );
-		/** Copied this from http://stackoverflow.com/questions/154536/encode-decode-urls-in-c */
-		std::string urlDecode( std::string& inputString );
-		template<class T> std::vector<T> decodeStringToArray( const std::string& inputString );
-		template<class T> T convertString( const std::string& inputString );
 	protected:
 		httpserver::HttpServer::Reply::StatusType handle_analyseFile( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
 		httpserver::HttpServer::Reply::StatusType handle_saveHistograms( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
@@ -67,6 +66,11 @@ namespace
 		httpserver::HttpServer::Reply::StatusType handle_occupancies( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
 		httpserver::HttpServer::Reply::StatusType handle_fitParameters( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
 		httpserver::HttpServer::Reply::StatusType handle_reset( std::ostream& reply, std::ostream& errorLog, const std::vector< std::pair<std::string,std::string> >& parameters, std::ostream* pDebugOutput=nullptr );
+		/** Copied this from http://stackoverflow.com/questions/154536/encode-decode-urls-in-c */
+		std::string urlDecode( std::string& inputString );
+		template<class T> std::vector<T> decodeStringToArray( const std::string& inputString );
+		template<class T> T convertString( const std::string& inputString );
+		template<class T> T convertString_impl( const std::string& inputString, size_t& idx ); ///< @brief convertString delegates to this method, because there is a lot of duplicated code otherwise.
 		void openDAQDumpFile( const std::string& filename );
 		cbcanalyser::FedSCurves connectedCBCSCurves_;
 		float threshold_;
@@ -79,9 +83,10 @@ int main( int argc, char* argv[] )
 {
 	//
 	// Remove all of the root signal handlers. I want this program to die
-	// with a simple SIGTERM.
+	// with a simple SIGTERM, the root signal handlers seem to screw this
+	// up.
 	//
-	for( int sig = 0; sig < kMAXSIGNALS; sig++) gSystem->ResetSignal((ESignals)sig);
+	for( int sig = 0; sig < kMAXSIGNALS; sig++) gSystem->ResetSignal( static_cast<ESignals>(sig) );
 
 	if( argc!=2 )
 	{
@@ -133,7 +138,7 @@ namespace
 
 		std::ostream* pDebugOutput=nullptr;
 		// Uncomment this line to make the delegate methods print extra info to the logs
-		pDebugOutput=&std::cerr;
+		//pDebugOutput=&std::cerr;
 
 		for( const auto& paramValuePair : parameters )
 		{
@@ -349,6 +354,7 @@ namespace
 				if( pPrimitive->ClassName()==std::string("TEfficiency") )
 				{
 					TGraphAsymmErrors* pPaintedHistogram=static_cast<TEfficiency*>(pPrimitive)->GetPaintedGraph();
+					pPaintedHistogram->SetMaximum(1.1); // Sometimes if the data doesn't go to maximum efficiency the top of the plot is cut off.
 					TPaveStats* pStatBox=static_cast<TPaveStats*>(pPaintedHistogram->GetListOfFunctions()->FindObject("stats"));
 					// Haven't figured out how to delete this, so clear the text and make the
 					// box invisible.
@@ -543,75 +549,25 @@ namespace
 		return arrayEntries;
 	}
 
-	template<>
-	std::string HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		return inputString;
-	}
-	template<>
-	float HttpRequestHandler::convertString( const std::string& inputString )
+	template<class T>
+	T HttpRequestHandler::convertString( const std::string& inputString )
 	{
 		size_t idx;
-		float result=std::stof( inputString, &idx );
+		T result=convertString_impl<T>( inputString, idx );
 		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
 		return result;
 	}
-	template<>
-	double HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		size_t idx;
-		double result=std::stod( inputString, &idx );
-		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
-		return result;
-	}
-	template<>
-	long double HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		size_t idx;
-		long double result=std::stold( inputString, &idx );
-		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
-		return result;
-	}
-	template<>
-	int HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		size_t idx;
-		int result=std::stoi( inputString, &idx );
-		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
-		return result;
-	}
-	template<>
-	long HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		size_t idx;
-		long result=std::stol( inputString, &idx );
-		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
-		return result;
-	}
-	template<>
-	unsigned long HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		size_t idx;
-		unsigned long result=std::stoul( inputString, &idx );
-		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
-		return result;
-	}
-	template<>
-	long long HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		size_t idx;
-		long long result=std::stoll( inputString, &idx );
-		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
-		return result;
-	}
-	template<>
-	unsigned long long HttpRequestHandler::convertString( const std::string& inputString )
-	{
-		size_t idx;
-		unsigned long long result=std::stoull( inputString, &idx );
-		if( idx!=inputString.size() ) throw std::runtime_error( "convertString - couldn't convert the whole string '"+inputString+"'" );
-		return result;
-	}
+
+	// These methods just use the function provided in <string>
+	template<> std::string HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { idx=inputString.size(); return inputString; }
+	template<> float HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stof( inputString, &idx ); }
+	template<> double HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stod( inputString, &idx ); }
+	template<> long double HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stold( inputString, &idx ); }
+	template<> int HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stoi( inputString, &idx ); }
+	template<> long HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stol( inputString, &idx ); }
+	template<> unsigned long HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stoul( inputString, &idx ); }
+	template<> long long HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stoll( inputString, &idx ); }
+	template<> unsigned long long HttpRequestHandler::convertString_impl( const std::string& inputString, size_t& idx ) { return std::stoull( inputString, &idx ); }
 
 	std::string HttpRequestHandler::urlDecode( std::string& inputString )
 	{
