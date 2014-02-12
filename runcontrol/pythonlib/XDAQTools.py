@@ -460,6 +460,20 @@ class Program(object) :
 		del self.contexts
 		self._loadXDAQConfig()
 
+	def setEnvironmentVariables( self, environmentVariables ) :
+		"""
+		Sets all the contexts to use the environment variables given when they start the
+		XDAQ process. Takes a dictionary.
+		"""
+		# Do some quick error checking to make sure everything passed was a string
+		if type(environmentVariables) is not dict : raise TypeError("setEnvironmentVariables was called with an object that is not a dictionary")
+		for key in environmentVariables.keys() :
+			if type(key) is not str : raise TypeError("setEnvironmentVariables was called with a dictionary that has a key that is not a string")
+			if type(environmentVariables[key]) is not str : raise TypeError("setEnvironmentVariables was called with a dictionary that has a value that is not a string")
+		# Input appears to be okay, so set the environment variables for all contexts
+		for context in self.contexts:
+			context.forcedEnvironmentVariables = environmentVariables
+
 	def startAllProcesses( self, ignoreIfCurrentlyRunning=False, forceRestart=False, forceStart=False ) :
 		"""
 		Starts all of the processes. See the docs for startProcess for the meaning of the parameters.
