@@ -20,8 +20,7 @@ class I2cRegister :
 
 class I2cChip :
 	"""
-	Class to hold several i
-	nstances of an I2cRegister.
+	Class to hold several instances of an I2cRegister.
 	@author Mark Grimes (mark.grimes@bristol.ac.uk)
 	@date 08/Aug/2013
 	"""
