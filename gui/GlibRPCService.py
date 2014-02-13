@@ -25,5 +25,5 @@ class GlibRPCService(JSONProxy):
 		JSONProxy.__init__(self, "services/GlibControlProxy.py", ["getStates","connectedCBCNames",
 			"I2CRegisterValues","setI2CRegisterValues","saveStateValues","loadStateValues",
 			"startProcesses","killProcesses","boardIsReachable",
-			"stopTakingData","startSCurveRun","startOccupancyCheck",
+			"stopTakingData","startSCurveRun","startOccupancyCheck","startTrimCalibration",
 			"getDataTakingStatus","getOccupancies","createHistogram","saveHistograms"] )

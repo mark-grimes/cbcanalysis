@@ -48,6 +48,7 @@ from pythonlib.SimpleGlibProgram import SimpleGlibProgram
 from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import SCurveRun
 from cbc2OccupancyCheck import OccupancyCheck
+from cbc2CalibrateChannelTrims import CalibrateChannelTrims
 
 class GlibControlService:
 	"""
@@ -213,6 +214,20 @@ class GlibControlService:
 
 		self.analysisControl.reset()
 		self.dataTakingThread=OccupancyCheck( GlibControlService._DataTakingStatusReceiver(self), self.program, self.analysisControl )
+		self.dataTakingThread.start()
+
+	def startTrimCalibration( self, msg ) :
+		"""
+		Starts a new thread that tries to calibrate the channel trims.
+		"""
+		# Make sure I'm not currently taking data
+		if self.dataTakingThread!=None : raise Exception("Currently taking data")
+
+		self.dataTakingFractionComplete=0
+		self.dataTakingStatusString="Initiating trim calibration"
+
+		self.analysisControl.reset()
+		self.dataTakingThread=CalibrateChannelTrims( GlibControlService._DataTakingStatusReceiver(self), self.program, self.analysisControl, range(100,150), msg['midPointTarget'], maxLoops=msg['maxLoops'] )
 		self.dataTakingThread.start()
 
 	def getDataTakingStatus( self, msg ) :

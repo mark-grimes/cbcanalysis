@@ -59,8 +59,9 @@ class DataRunManager(object) :
 		"""
 		#ErrorMessage( "Response to method '"+request_info.method+"'='"+str(response)+"'" )
 		if request_info.method=="getDataTakingStatus" : self._onGetDataTakingStatusResponse(response)
-		elif request_info.method=="startSCurveRun" : self._onStartSCurveRunResponse(response)
-		elif request_info.method=="startOccupancyCheck" : self._onStartOccupancyCheckResponse(response)
+		elif request_info.method=="startSCurveRun" : self._startRunResponse(response,"S-curve run")
+		elif request_info.method=="startOccupancyCheck" : self._startRunResponse(response,"Occupancy check")
+		elif request_info.method=="startTrimCalibration" : self._startRunResponse(response,"Trim calibration")
 		elif request_info.method=="stopTakingData" : pass
 		else : ErrorMessage( "Received an unexpected response for method "+request_info.method )
 	
@@ -107,22 +108,11 @@ class DataRunManager(object) :
 			# though.
 			if self.idlePollingTime>0 : self.pollingTimer.schedule( DataRunManager.idlePollingTime )
 
-	def _onStartSCurveRunResponse( self, reponse ) :
+	def _startRunResponse( self, reponse, runType ) :
 		"""
 		Handles the response to a RPC call. Separate method for code layout only.
 		"""
-		self.statusString="S-curve run started"
-		# Start polling the RPC service to see how the run is going
-		self.pollingTimer.schedule( DataRunManager.pollingTime )
-		# inform all registered handlers that data taking has started
-		for handler in self.eventHandlers :
-			handler.onDataTakingEvent( DataRunManager.DataTakingStartedEvent, None )
-		
-	def _onStartOccupancyCheckResponse( self, reponse ) :
-		"""
-		Handles the response to a RPC call. Separate method for code layout only.
-		"""
-		self.statusString="Occupancy check started"
+		self.statusString=runType+" started"
 		# Start polling the RPC service to see how the run is going
 		self.pollingTimer.schedule( DataRunManager.pollingTime )
 		# inform all registered handlers that data taking has started
@@ -157,5 +147,12 @@ class DataRunManager(object) :
 		self.statusString="Initiating occupancy check"
 		self.rpcService.startOccupancyCheck( None, self )
 
+	def startTrimCalibration( self,  midPointTarget, maxLoops ) :
+		if self.fractionComplete!=1 : raise AlreadyTakingDataError()
+		
+		self.fractionComplete=0
+		self.statusString="Initiating trim calibration"
+		self.rpcService.startTrimCalibration( {'midPointTarget':midPointTarget,'maxLoops':maxLoops}, self )
+		
 	def stopTakingData( self ) :
 		self.rpcService.stopTakingData( None, self )
