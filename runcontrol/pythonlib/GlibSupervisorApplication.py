@@ -8,13 +8,14 @@ import XDAQTools, re
 from I2cChip import I2cChip
 
 class GlibSupervisorApplication( XDAQTools.Application ) :
-	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterDirectory=INSTALLATION_PATH+"/runcontrol/i2c" ) :
+	def __init__( self, host=None, port=None, className=None, instance=None, I2cRegisterDirectory=INSTALLATION_PATH+"/runcontrol/i2c", I2cUserRegisterDirectory=INSTALLATION_PATH+"/runcontrol/user_i2c") :
 		# Because there's a chance I might reassign the class of a base Application instance to this
 		# class, I'll check and see if the base has been initialised before calling the super class
 		# constructor.
 		if not hasattr( self, "host" ) : super(GlibSupervisorApplication,self).__init__( host, port, className, instance )
 
 		self._directoryForI2C=I2cRegisterDirectory
+		self._userDirForI2C=I2cUserRegisterDirectory
 		# I2C parameters have to be saved to a file, and then the GlibSupervisor told to send the
 		# file to the board. This is the temporary directory I'll use to store the files.
 		# Have a lot of problems if I don't have permission to write to this directory, so try
@@ -188,6 +189,7 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 			for name in registerNameValueTuple :
 				register = chip.getRegister(name)
 				register.value = registerNameValueTuple[name]
+			
 
 	def sendI2c( self, registerNames=None, chipNames=None ) :
 		"""
@@ -200,9 +202,8 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		self.saveI2c( self.tempDirectory, registerNames, chipNames )
 		self.sendI2cFilesFromDirectory( self.tempDirectory )
 	
-	def saveI2c( self, directoryName, registerNames=None, chipNames=None ) :
+	def saveI2c( self, directoryName=None, registerNames=None, chipNames=None, fileName=None ) :
 		if not self._connectedCBCsHaveBeenInitialised : self._initConnectedCBCs()
-		
 		# First make sure there are no files left over from previous sends. Allow an error
 		# of 'No such file or directory' but throw any other exceptions.
 		for filename in ["FE0CBC0.txt","FE0CBC1.txt","FE1CBC0.txt","FE1CBC1.txt"] :
@@ -216,9 +217,25 @@ class GlibSupervisorApplication( XDAQTools.Application ) :
 		except:
 			pass
 		
+		if directoryName==None: directoryName=self._userDirForI2C
 		if chipNames==None : chipNames=self.i2cChips.keys()
-		for name in chipNames :
-			self.i2cChips[name].writeToFilename( os.path.join(directoryName,name+".txt"), registerNames )
+		
+		if fileName!=None : 
+			for name in chipNames :
+				self.i2cChips[name].writeToFilename( os.path.join(directoryName,fileName+"_"+name+".txt"), registerNames )
+		else:
+			for name in chipNames :
+				self.i2cChips[name].writeToFilename( os.path.join(directoryName,name+".txt"), registerNames )
+				
+	def loadI2c(self, directoryName=None, fileName=None, chipNames=None, registerNames=None ):
+		if directoryName==None: directoryName=self._userDirForI2C
+		if chipNames==None : chipNames=self.i2cChips.keys()
+		
+		if fileName!=None:
+			for name in chipNames :
+					self.i2cChips[name].loadFromFile( os.path.join(directoryName,fileName+"_"+name+".txt"))
+		else: raise Exception("Please define a file name")
+		
 
 	def sendI2cFilesFromDirectory( self, directoryName ) :
 		"""

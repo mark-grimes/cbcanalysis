@@ -29,10 +29,9 @@ class I2CPanel :
 	class saveStateListener :
 		def __init__(self, panel) :
 			self._saveStatePanel=panel	
-			self._saveStatePanel.returnStatement.setText("File saved: " + self._saveStatePanel.saveFileName.getText())
 			
 		def onRemoteResponse(self, response, request_info):
-			pass
+			self._saveStatePanel.returnStatement.setText("File saved:" + response)
 			
 		def onRemoteError(self, code, message, request_info):
 			ErrorMessage( "Unable to contact server" )
@@ -43,7 +42,7 @@ class I2CPanel :
 			self._saveStatePanel=panel	
 			
 		def onRemoteResponse(self, response, request_info):
-			self._saveStatePanel.returnStatement.setText("File loaded: " + self._saveStatePanel.loadFileName.getText())
+			self._saveStatePanel.returnStatement.setText("File loaded:" + response)
 			self._saveStatePanel.rpcService.I2CRegisterValues( self._saveStatePanel.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self._saveStatePanel) ) #refresh of text boxes
 
 		def onRemoteError(self, code, message, request_info):
@@ -174,10 +173,11 @@ class I2CPanel :
 			self.save.setEnabled(True)
 		elif sender == self.save:
 			msg = self.saveFileName.getText()
-			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) ) #refresh box
+			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) )
 		elif sender == self.load:
 			msg = self.loadFileName.getText()
 			self.rpcService.loadStateValues(msg, I2CPanel.loadStateListener(self) )	
+			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )#
 				
 		# Sender must be a text box. Need to format the input.
 		else : 
@@ -299,7 +299,7 @@ class I2CPanel :
 		#Tidy up 
 		loadPanel = HorizontalPanel()
 		loadFileTextBox = TextBox()
-		loadFileTextBox.setText("DatFile.txt")
+		loadFileTextBox.setText("MyI2cCfg")
 		loadFileTextBox.setWidth(80)
 		self.loadFileName = loadFileTextBox
 		loadPanel.add(loadFileTextBox)
@@ -309,7 +309,7 @@ class I2CPanel :
 		
 		savePanel = HorizontalPanel()
 		saveFileTextBox = TextBox()
-		saveFileTextBox.setText("DatFile.txt")
+		saveFileTextBox.setText("MyI2cCfg")
 		saveFileTextBox.setWidth(80)
 		self.saveFileName = saveFileTextBox
 		savePanel.add(saveFileTextBox)

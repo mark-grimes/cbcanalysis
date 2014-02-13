@@ -49,6 +49,9 @@ from pythonlib.AnalyserControl import AnalyserControl
 from cbc2SCurveRun import SCurveRun
 from cbc2OccupancyCheck import OccupancyCheck
 
+from pythonlib.I2cChip import I2cRegister
+from pythonlib.I2cChip import I2cChip
+
 class GlibControlService:
 	"""
 	Class that invokes the Glib control methods in response to JSON RPC calls.
@@ -135,37 +138,15 @@ class GlibControlService:
 	
 	def saveStateValues(self, msg):
 		
-		#state = self.program.supervisor.I2CRegisterValues()
-		#chipNames = state.keys()
-		#registerNameValueTuple = state[chipNames[0]]
-		
-		saveState = self.program.supervisor.I2CRegisterValues(self.activeCBCs)
-		
-		with open("/tmp/"+msg, 'wb') as writeFile:
-			pickle.dump( saveState, writeFile)
-		writeFile.close()
-		
-		return msg
+		self.program.supervisor.saveI2c(fileName=msg)
+
+		return msg+"_<ChipName>.txt"
 	
 	def loadStateValues(self, msg):
-		with open("/tmp/"+msg, 'rb') as readFile:
-			loadState = pickle.load(readFile)
-		readFile.close()
 		
-		chipNames = loadState.keys()
+		self.program.supervisor.loadI2c(fileName=msg)
 		
-		for name in chipNames:
-			if name == 'FE0CBC0':
-				registerNameValueTuple = loadState[loadState.keys()[0]]
-			elif name == 'FE0CBC1':
-				registerNameValueTuple = loadState[loadState.keys()[1]]
-			
-			self.program.supervisor.setI2c( registerNameValueTuple, chipNames = [name] )
-		
-		#for name, registerNameValueTuple in chipNames.iteritems():
-		#	self.program.supervisor.setI2c( registerNameValueTuple, [name] )
-		
-		return loadState
+		return msg+"_<ChipName>.txt"
 	
 	def startProcesses(self, msg):
 		"""
