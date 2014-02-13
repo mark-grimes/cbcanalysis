@@ -37,27 +37,33 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 		"""
 		if self.supervisor._connectedCBCsHaveBeenInitialised : return
 
-		currentState=self.supervisor.getState()
-		supervisorContext=None
-		if currentState=="<uncontactable>" :
-			# Need to find the context for the supervisor and start it. I don't
-			# know which one it is though so I'll have to search through them.
-			for context in self.contexts :
-				for application in context.applications :
-					if application==self.supervisor : supervisorContext=context
-			supervisorContext.startProcess( ignoreIfCurrentlyRunning=True )
-			supervisorContext.waitUntilProcessStarted()
+		try :
 			currentState=self.supervisor.getState()
-
-		if currentState=="Initial" :
-			self.supervisor.sendCommand( "Initialise" )
-			self.supervisor.waitForState( "Halted" )
-
-		self.supervisor._initConnectedCBCs()
-
-		# If I had to start the process then I'll kill it so that it was in the state
-		# it was in beforehand.
-		if supervisorContext!=None : supervisorContext.killProcess()
+			supervisorContext=None
+			if currentState=="<uncontactable>" :
+				# Need to find the context for the supervisor and start it. I don't
+				# know which one it is though so I'll have to search through them.
+				for context in self.contexts :
+					for application in context.applications :
+						if application==self.supervisor : supervisorContext=context
+				supervisorContext.startProcess( ignoreIfCurrentlyRunning=True )
+				supervisorContext.waitUntilProcessStarted()
+				currentState=self.supervisor.getState()
+	
+			if currentState=="Initial" :
+				self.supervisor.sendCommand( "Initialise" )
+				self.supervisor.waitForState( "Halted" )
+	
+			self.supervisor._initConnectedCBCs()
+	
+			# If I had to start the process then I'll kill it so that it was in the state
+			# it was in beforehand.
+			if supervisorContext!=None : supervisorContext.killProcess()
+		except :
+			# If the XDAQ processes weren't running beforehand, make sure they're stopped
+			# before propagating the error.
+			if currentState=="<uncontactable>" : supervisorContext.killProcess()
+			raise
 			
 		
 	def initialise( self, triggerRate=None, numberOfEvents=100, timeout=5.0 ) :
@@ -85,6 +91,13 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 		self.supervisor.setI2c( registerNameValueTuple, chipNames )
 		self.supervisor.sendI2c( registerNameValueTuple.keys(), chipNames )
 	
+	def saveI2c( self, directoryName ) :
+		self.supervisor.saveI2c( directoryName )
+
+	def loadI2c( self, directoryName ) :
+		for chipName in self.supervisor.i2cChips.keys() :
+			self.supervisor.i2cChips[chipName].loadFromFile(directoryName+'/'+chipName+'.txt')
+
 	def configure( self, timeout=5.0 ) :
 		self.supervisor.sendCommand( "Configure" )
 		self.streamer.sendCommand( "configure" )
