@@ -46,10 +46,10 @@ class CalibrateChannelTrimsView(object) :
 		self.mainPanel.add( self.echo )
 
 	def getMaxNumberOfLoops( self ) :
-		return self.maximumNumberOfLoops.getText()
+		return int(self.maximumNumberOfLoops.getText())
 
 	def getAimPoint( self ) :
-		return self.aimPoint.getText()
+		return int(self.aimPoint.getText())
 
 	def getStartButton( self ) :
 		return self.start
@@ -93,7 +93,7 @@ class CalibrateChannelTrimsPanel(object) :
 
 	def onClick( self, sender ) :
 		if sender==self.view.getStartButton() :
-			ErrorMessage( "I haven't coded this up yet. The python script<br>runcontrol/cbc2CalibrateChannelTrims.py works." )
+			self.dataRunManager.startTrimCalibration( self.view.getAimPoint(), self.view.getMaxNumberOfLoops() )
 
 	def getPanel( self ) :
 		return self.view.getPanel()
