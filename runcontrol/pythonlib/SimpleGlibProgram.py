@@ -117,3 +117,4 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 
 	def play( self, timeout=5.0 ) :
 		self.streamer.sendCommand( "start" )
+		

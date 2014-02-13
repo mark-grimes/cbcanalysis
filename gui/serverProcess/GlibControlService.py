@@ -50,6 +50,9 @@ from cbc2SCurveRun import SCurveRun
 from cbc2OccupancyCheck import OccupancyCheck
 from cbc2CalibrateChannelTrims import CalibrateChannelTrims
 
+from pythonlib.I2cChip import I2cRegister
+from pythonlib.I2cChip import I2cChip
+
 class GlibControlService:
 	"""
 	Class that invokes the Glib control methods in response to JSON RPC calls.
@@ -132,20 +135,15 @@ class GlibControlService:
 	
 	def saveStateValues(self, msg):
 		
-		state = self.program.supervisor.I2CRegisterValues()
-		chipNames = state.keys()
-		registerNameValueTuple = state[chipNames[0]]
-		
-	#	with open("/tmp/test.txt", 'w') as thefile:
-			#for item in msg:
-				#thefile.write("%s\n" %msg[item])
-			#thefile.write(registerNameValueTuple)
-	#	thefile.close()
-		
-		return msg
+		self.program.supervisor.saveI2c(fileName=msg)
+
+		return msg+"_<ChipName>.txt"
 	
 	def loadStateValues(self, msg):
-		return msg
+		
+		self.program.supervisor.loadI2c(fileName=msg)
+		
+		return msg+"_<ChipName>.txt"
 	
 	def startProcesses(self, msg):
 		"""
