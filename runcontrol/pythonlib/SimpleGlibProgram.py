@@ -95,8 +95,7 @@ class SimpleGlibProgram( XDAQTools.Program ) :
 		self.supervisor.saveI2c( directoryName )
 
 	def loadI2c( self, directoryName ) :
-		for chipName in self.supervisor.i2cChips.keys() :
-			self.supervisor.i2cChips[chipName].loadFromFile(directoryName+'/'+chipName+'.txt')
+		self.supervisor.loadI2c( directoryName )
 
 	def configure( self, timeout=5.0 ) :
 		self.supervisor.sendCommand( "Configure" )

@@ -173,10 +173,10 @@ class I2CPanel :
 			self.save.setEnabled(True)
 		elif sender == self.save:
 			msg = self.saveFileName.getText()
-			self.rpcService.saveStateValues(msg, I2CPanel.saveStateListener(self) )
+			self.rpcService.saveI2cRegisterValues(msg, I2CPanel.saveStateListener(self) )
 		elif sender == self.load:
 			msg = self.loadFileName.getText()
-			self.rpcService.loadStateValues(msg, I2CPanel.loadStateListener(self) )	
+			self.rpcService.loadI2cRegisterValues(msg, I2CPanel.loadStateListener(self) )	
 			self.rpcService.I2CRegisterValues( self.getTotalCBCs(), I2CPanel.ReadRegisterValueListener(self) )#
 				
 		# Sender must be a text box. Need to format the input.

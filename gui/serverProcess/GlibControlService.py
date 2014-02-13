@@ -95,6 +95,10 @@ class GlibControlService:
 		# When the analyser is spawned it takes on the environment of this script, so I'll modify that directly
 		self.analysisControl = AnalyserControl( "127.0.0.1", "50000", True, environmentVariables )
 		self.analysisControl.reset()
+		
+		# Directory where the user can save their I2C files
+		self.userI2cDirectory=INSTALLATION_PATH+"/runcontrol/user_i2c/"
+		
 		# The members below are for handling the thread that takes data
 		self.dataTakingThread=None
 		self.dataTakingFractionComplete=1
@@ -133,17 +137,13 @@ class GlibControlService:
 
 		return self.program.supervisor.setI2c( registerNameValueTuple, chipNames )
 	
-	def saveStateValues(self, msg):
-		
-		self.program.supervisor.saveI2c(fileName=msg)
-
-		return msg+"_<ChipName>.txt"
+	def saveI2cRegisterValues(self, msg):
+		self.program.supervisor.saveI2c( self.userI2cDirectory+msg )
+		return msg
 	
-	def loadStateValues(self, msg):
-		
-		self.program.supervisor.loadI2c(fileName=msg)
-		
-		return msg+"_<ChipName>.txt"
+	def loadI2cRegisterValues(self, msg):
+		self.program.supervisor.loadI2c( self.userI2cDirectory+msg )
+		return msg
 	
 	def startProcesses(self, msg):
 		"""

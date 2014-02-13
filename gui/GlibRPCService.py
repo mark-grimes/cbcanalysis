@@ -23,7 +23,7 @@ class GlibRPCService(JSONProxy):
 		if GlibRPCService._onlyInstance!=None :
 			raise Exception( "GlibRPCService is a singleton class. Call 'GlibRPCService.instance()' to get the only running instance" )
 		JSONProxy.__init__(self, "services/GlibControlProxy.py", ["getStates","connectedCBCNames",
-			"I2CRegisterValues","setI2CRegisterValues","saveStateValues","loadStateValues",
+			"I2CRegisterValues","setI2CRegisterValues","saveI2cRegisterValues","loadI2cRegisterValues",
 			"startProcesses","killProcesses","boardIsReachable",
 			"stopTakingData","startSCurveRun","startOccupancyCheck","startTrimCalibration",
 			"getDataTakingStatus","getOccupancies","createHistogram","saveHistograms"] )
