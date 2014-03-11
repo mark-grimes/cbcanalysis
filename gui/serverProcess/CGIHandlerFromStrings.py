@@ -63,7 +63,7 @@ class CGIHandlerFromStrings(SimpleServiceHandler):
 
     def sendReply(self):
         data = "\n".join(self.sendData)
-        response = "Content-Type: text/plain\n"
+        response = "Content-Type: application/json\n"
         response += "Content-Length: %d\n\n" % len(data)
         response += data
 
